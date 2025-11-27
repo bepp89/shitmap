@@ -237,55 +237,65 @@ document.addEventListener("DOMContentLoaded", () => {
     loadAll();
 
     // =========================
-    // LEADERBOARD (Firebase)
-    // =========================
-    const firebaseConfig = {
-      apiKey: "AIzaSyCFuKV9PLYejoUY8LZuX0ng22c_sQiidQw",
-      authDomain: "shitmap-bda58.firebaseapp.com",
-      databaseURL: "https://shitmap-bda58-default-rtdb.firebaseio.com",
-      projectId: "shitmap-bda58",
-      storageBucket: "shitmap-bda58.firebasestorage.app",
-      messagingSenderId: "845888799744",
-      appId: "1:845888799744:web:9b32c6c6dc99224e5604e5",
-      measurementId: "G-H0M7FEWJZZ"
-    };
+// LEADERBOARD (Firebase)
+// =========================
+const firebaseConfig = {
+  apiKey: "AIzaSyCFuKV9PLYejoUY8LZuX0ng22c_sQiidQw",
+  authDomain: "shitmap-bda58.firebaseapp.com",
+  databaseURL: "https://shitmap-bda58-default-rtdb.firebaseio.com",
+  projectId: "shitmap-bda58",
+  storageBucket: "shitmap-bda58.firebasestorage.app",
+  messagingSenderId: "845888799744",
+  appId: "1:845888799744:web:9b32c6c6dc99224e5604e5",
+  measurementId: "G-H0M7FEWJZZ"
+};
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-    function saveScore(username, points) {
-        const ref = db.ref('leaderboard');
-        const newEntry = ref.push();
-        newEntry.set({
-            user: username,
-            points: points
+function saveScore(username, points) {
+    const ref = db.ref('leaderboard');
+    const newEntry = ref.push();
+    newEntry.set({
+        user: username,
+        points: points
+    });
+}
+
+function showLeaderboard() {
+    const leaderboardDiv = document.getElementById('leaderboard');
+    leaderboardDiv.style.display = 'block';
+    leaderboardDiv.innerHTML = "<b>Leaderboard:</b><br>";
+
+    db.ref('leaderboard').orderByChild('points').limitToLast(10).once('value', snapshot => {
+        const data = [];
+        snapshot.forEach(child => {
+            data.push(child.val());
         });
-    }
-
-    function showLeaderboard() {
-        const leaderboardDiv = document.getElementById('leaderboard');
-        leaderboardDiv.style.display = 'block';
-        leaderboardDiv.innerHTML = "<b>Leaderboard:</b><br>";
-
-        db.ref('leaderboard').orderByChild('points').limitToLast(10).once('value', snapshot => {
-            const data = [];
-            snapshot.forEach(child => {
-                data.push(child.val());
-            });
-            data.sort((a,b) => b.points - a.points);
-            data.forEach(entry => {
-                leaderboardDiv.innerHTML += `${entry.user}: ${entry.points} pkt<br>`;
-            });
+        data.sort((a,b) => b.points - a.points);
+        data.forEach(entry => {
+            leaderboardDiv.innerHTML += `${entry.user}: ${entry.points} pkt<br>`;
         });
-    }
+    });
+}
 
-    document.getElementById("leaderboardBtn").onclick = () => {
-        const username = prompt("Podaj swój nick do leaderboard:");
-        if(!username) return;
+// -------------------------
+// Wyświetlamy leaderboard od razu po załadowaniu strony
+// -------------------------
+window.addEventListener('load', () => {
+    const username = prompt("Podaj swój nick do leaderboard:") || "Anonim";
+    const points = totalPoints || 0;
+    saveScore(username, points);
+    showLeaderboard();
+});
 
-        const points = totalPoints || 0;
-        saveScore(username, points);
-        showLeaderboard();
-    };
-
+// -------------------------
+// Opcjonalnie przycisk nadal działa
+// -------------------------
+document.getElementById("leaderboardBtn").onclick = () => {
+    const username = prompt("Podaj swój nick do leaderboard:") || "Anonim";
+    const points = totalPoints || 0;
+    saveScore(username, points);
+    showLeaderboard();
+};
 });
