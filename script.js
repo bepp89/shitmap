@@ -29,40 +29,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // -------------------------
-    // FUNKCJA OBLICZANIA ODLEGŁOŚCI (metry)
-    // -------------------------
-    function distance(lat1, lon1, lat2, lon2) {
-        const R = 6371000;
-        const toRad = x => x * Math.PI / 180;
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-
-        const a =
-            Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
-
-        return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-    }
-
-    // -------------------------
-    // GEOKODOWANIE ADRESU / KODU
-    // -------------------------
-    async function geocodeAddress(address) {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=pl`;
-
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.length === 0) return null;
-
-        return {
-            lat: parseFloat(data[0].lat),
-            lon: parseFloat(data[0].lon)
-        };
-    }
-
-    // -------------------------
     // FIREBASE CONFIG
     // -------------------------
     const firebaseConfig = {
@@ -82,9 +48,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // LOGIN / REGISTER
     // -------------------------
     async function login() {
-        let username = prompt("Podaj nazwę użytkownika:");
-        if (!username) return;
-        let password = prompt("Podaj hasło:");
+        let username = document.getElementById("usernameInput").value;
+        let password = document.getElementById("passwordInput").value;
+
+        if (!username || !password) {
+            document.getElementById("loginMessage").textContent = "Wszystkie pola muszą być wypełnione!";
+            return;
+        }
 
         const snapshot = await db.ref('users/' + username).get();
         if (snapshot.exists()) {
@@ -95,23 +65,28 @@ document.addEventListener("DOMContentLoaded", () => {
                 totalPoints = data.points || 0;
                 homePoint = data.homePoint || null;
                 loadUserData();
+                document.getElementById("loginPanel").style.display = "none";
+                document.getElementById("statsPanel").style.display = "block";
             } else {
-                alert("Nieprawidłowe hasło!");
-                login();
+                document.getElementById("loginMessage").textContent = "Nieprawidłowe hasło!";
             }
         } else {
-            alert("Nie ma takiego użytkownika.");
+            document.getElementById("loginMessage").textContent = "Nie ma takiego użytkownika.";
         }
     }
 
     async function register() {
-        let username = prompt("Podaj nazwę użytkownika:");
-        if (!username) return;
-        let password = prompt("Podaj hasło:");
+        let username = document.getElementById("usernameInput").value;
+        let password = document.getElementById("passwordInput").value;
+
+        if (!username || !password) {
+            document.getElementById("loginMessage").textContent = "Wszystkie pola muszą być wypełnione!";
+            return;
+        }
 
         const snapshot = await db.ref('users/' + username).get();
         if (snapshot.exists()) {
-            alert("Taka nazwa już istnieje!");
+            document.getElementById("loginMessage").textContent = "Taka nazwa już istnieje!";
             return;
         }
 
@@ -123,10 +98,9 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("Konto utworzone! Zaloguj się.");
     }
 
-    document.getElementById("leaderboardBtn").insertAdjacentHTML("beforebegin", `<button id="registerBtn">Utwórz konto</button>`);
-    document.getElementById("registerBtn").onclick = register;
-
-    login(); // wywołujemy okno logowania od razu po wejściu
+    // Obsługuje kliknięcia przycisków
+    document.getElementById("loginBtn").addEventListener("click", login);
+    document.getElementById("createAccountBtn").addEventListener("click", register);
 
     // -------------------------
     // LOAD USER DATA
@@ -141,7 +115,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Load markers saved in Firebase (optional, można rozszerzyć)
-        // Na razie markers są lokalne
     }
 
     // -------------------------
