@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
+
     // -------------------------
-    // MAPA NA BYDGOSZCZ
+    // KONFIGURACJA MAPY
     // -------------------------
     const map = L.map('map').setView([53.126, 18.010], 13);
 
@@ -13,8 +14,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let homePoint = null;
     let homeMarker = null;
     let selectingHome = false;
-    let totalPoints = 0;
-    let currentUser = null;
+
+    let totalPoints = Number(localStorage.getItem("totalPoints")) || 0;
+    document.getElementById("points").textContent = totalPoints;
 
     const redIcon = L.icon({
         iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
@@ -27,6 +29,40 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // -------------------------
+    // FUNKCJA OBLICZANIA ODLEGŁOŚCI (metry)
+    // -------------------------
+    function distance(lat1, lon1, lat2, lon2) {
+        const R = 6371000;
+        const toRad = x => x * Math.PI / 180;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+
+        const a =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) ** 2;
+
+        return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    }
+
+    // -------------------------
+    // GEOKODOWANIE ADRESU / KODU
+    // -------------------------
+    async function geocodeAddress(address) {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=pl`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.length === 0) return null;
+
+        return {
+            lat: parseFloat(data[0].lat),
+            lon: parseFloat(data[0].lon)
+        };
+    }
+
+    // -------------------------
     // ZAPIS / ODCZYT
     // -------------------------
     function saveAll() {
@@ -34,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem('markerCount', markerCount);
         localStorage.setItem('homePoint', JSON.stringify(homePoint));
         localStorage.setItem('totalPoints', totalPoints);
+
         document.getElementById('count').textContent = markerCount;
         document.getElementById("points").textContent = totalPoints;
     }
@@ -64,151 +101,57 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // -------------------------
-    // FUNKCJE LOGOWANIA I REJESTRACJI
+    // USTAWIENIE ADRESU / KODU
     // -------------------------
-    const firebaseConfig = {
-        apiKey: "AIzaSyCFuKV9PLYejoUY8LZuX0ng22c_sQiidQw",
-        authDomain: "shitmap-bda58.firebaseapp.com",
-        databaseURL: "https://shitmap-bda58-default-rtdb.firebaseio.com",
-        projectId: "shitmap-bda58",
-        storageBucket: "shitmap-bda58.firebasestorage.app",
-        messagingSenderId: "845888799744",
-        appId: "1:845888799744:web:9b32c6c6dc99224e5604e5",
-        measurementId: "G-H0M7FEWJZZ"
-    };
+    async function askForAddress() {
+        const address = prompt("Podaj adres lub kod pocztowy:");
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+        if (!address) return;
 
-    async function register() {
-        const username = prompt("Wybierz unikalny nick:");
-        if (!username) return;
+        const result = await geocodeAddress(address);
+        if (!result) { alert("Nie znaleziono lokalizacji."); return; }
 
-        const userRef = db.ref('users/' + username);
-        userRef.get().then(snapshot => {
-            if (snapshot.exists()) {
-                alert("Taki użytkownik już istnieje!");
-            } else {
-                // Rejestracja użytkownika
-                userRef.set({
-                    username: username, // Zapisywanie nazwy użytkownika w bazie
-                    points: 0,
-                    homePoint: null
-                });
-                alert("Konto zostało utworzone!");
-                currentUser = username;
-                toggleLoginUI(false); // Ukrycie przycisków po rejestracji
-            }
-        });
-    }
-
-    async function login() {
-        const username = prompt("Podaj swój nick:");
-        if (!username) return;
-
-        const userRef = db.ref('users/' + username);
-        userRef.get().then(snapshot => {
-            if (snapshot.exists()) {
-                currentUser = username;
-                const userData = snapshot.val();
-                totalPoints = userData.points;
-                homePoint = userData.homePoint;
-                loadAll();
-                alert("Zalogowano pomyślnie!");
-                toggleLoginUI(false); // Ukrycie przycisków po zalogowaniu
-                showLeaderboard(); // Pokazanie leaderboardu po zalogowaniu
-            } else {
-                alert("Brak konta o takim nicku.");
-            }
-        });
-    }
-
-    function saveScore() {
-        if (!currentUser) return;
-        const ref = db.ref('users/' + currentUser);
-        ref.update({
-            points: totalPoints,
-            homePoint: homePoint
-        });
-    }
-
-    function toggleLoginUI(isLoggedIn) {
-        // Ukrywanie przycisków logowania i rejestracji
-        const loginBtn = document.getElementById("loginBtn");
-        const registerBtn = document.getElementById("registerBtn");
-        const leaderboardBtn = document.getElementById("leaderboardBtn");
-        const logoutBtn = document.getElementById("logoutBtn");
-        
-        if (isLoggedIn) {
-            loginBtn.style.display = 'none';
-            registerBtn.style.display = 'none';
-            leaderboardBtn.style.display = 'block';
-            logoutBtn.style.display = 'block';
-        } else {
-            loginBtn.style.display = 'block';
-            registerBtn.style.display = 'block';
-            leaderboardBtn.style.display = 'none';
-            logoutBtn.style.display = 'none';
-        }
-    }
-
-    function logout() {
-        currentUser = null;
-        totalPoints = 0;
-        homePoint = null;
+        homePoint = { lat: result.lat, lon: result.lon };
         saveAll();
-        saveScore();
-        toggleLoginUI(true); // Pokazanie przycisków logowania po wylogowaniu
-        alert("Wylogowano pomyślnie!");
+
+        if (homeMarker) homeMarker.remove();
+
+        homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
+            .addTo(map)
+            .bindPopup("<b>Punkt startowy</b>");
+
+        map.setView([homePoint.lat, homePoint.lon], 15);
     }
 
-    document.getElementById("loginBtn").onclick = login;
-    document.getElementById("registerBtn").onclick = register;
-    document.getElementById("logoutBtn").onclick = logout;
+    document.getElementById("changeAddress").onclick = askForAddress;
 
     // -------------------------
-    // LEADERBOARD
+    // WYBÓR DOMU NA MAPIE
     // -------------------------
-    function showLeaderboard() {
-        const leaderboardDiv = document.getElementById('leaderboard');
-        leaderboardDiv.style.display = 'block';
-        leaderboardDiv.innerHTML = "<b>Leaderboard:</b><br>";
-
-        db.ref('users').orderByChild('points').limitToLast(10).once('value', snapshot => {
-            const data = [];
-            snapshot.forEach(child => {
-                const entry = child.val();
-                entry.username = child.key; // Dodajemy username z klucza
-                data.push(entry);
-            });
-            data.sort((a, b) => b.points - a.points);
-            data.forEach(entry => {
-                leaderboardDiv.innerHTML += `${entry.username}: ${entry.points} pkt<br>`;
-            });
-        });
-    }
-
-    // -------------------------
-    // FUNKCJA OBLICZANIA ODLEGŁOŚCI (metry)
-    // -------------------------
-    function distance(lat1, lon1, lat2, lon2) {
-        const R = 6371000; 
-        const toRad = x => x * Math.PI / 180;
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-
-        const a =
-            Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
-
-        return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-    }
+    document.getElementById("setHomeOnMap").onclick = () => {
+        selectingHome = true;
+        alert("Kliknij na mapie, aby ustawić punkt startowy.");
+    };
 
     // -------------------------
     // KLIK W MAPĘ
     // -------------------------
     map.on("click", (e) => {
+
+        if (selectingHome) {
+            selectingHome = false;
+
+            homePoint = { lat: e.latlng.lat, lon: e.latlng.lng };
+            if (homeMarker) homeMarker.remove();
+
+            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
+                .addTo(map)
+                .bindPopup("<b>Punkt startowy</b>");
+
+            saveAll();
+            return;
+        }
+
         if (!homePoint) { alert("Najpierw ustaw punkt startowy!"); return; }
 
         const coords = [e.latlng.lat, e.latlng.lng];
@@ -234,6 +177,9 @@ document.addEventListener("DOMContentLoaded", () => {
         saveAll();
     });
 
+    // -------------------------
+    // USUWANIE PINEZKI
+    // -------------------------
     window.deleteMarker = function(id) {
         const pin = markers.find(m => m.id === id);
 
@@ -274,7 +220,72 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("points").textContent = totalPoints;
     }
 
-    loadAll(); // Załadowanie zapisanych danych
+    // -------------------------
+    // RESET PUNKTÓW
+    // -------------------------
+    document.getElementById("resetPoints").onclick = () => {
+        if (!confirm("Na pewno chcesz zresetować wszystkie punkty?")) return;
 
-    toggleLoginUI(true);  // Początkowo wyświetlamy przyciski logowania
+        totalPoints = 0;
+        localStorage.setItem("totalPoints", totalPoints);
+        document.getElementById("points").textContent = totalPoints;
+    };
+
+    // -------------------------
+    // LEADERBOARD (Firebase)
+    // -------------------------
+    const firebaseConfig = {
+      apiKey: "AIzaSyCFuKV9PLYejoUY8LZuX0ng22c_sQiidQw",
+      authDomain: "shitmap-bda58.firebaseapp.com",
+      databaseURL: "https://shitmap-bda58-default-rtdb.firebaseio.com",
+      projectId: "shitmap-bda58",
+      storageBucket: "shitmap-bda58.firebasestorage.app",
+      messagingSenderId: "845888799744",
+      appId: "1:845888799744:web:9b32c6c6dc99224e5604e5",
+      measurementId: "G-H0M7FEWJZZ"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function saveScore(username, points) {
+        const ref = db.ref('leaderboard');
+        const newEntry = ref.push();
+        newEntry.set({
+            user: username,
+            points: points
+        });
+    }
+
+    function showLeaderboard() {
+        const leaderboardDiv = document.getElementById('leaderboard');
+        leaderboardDiv.style.display = 'block';
+        leaderboardDiv.innerHTML = "<b>Leaderboard:</b><br>";
+
+        db.ref('leaderboard').orderByChild('points').limitToLast(10).once('value', snapshot => {
+            const data = [];
+            snapshot.forEach(child => {
+                data.push(child.val());
+            });
+            data.sort((a,b) => b.points - a.points);
+            data.forEach(entry => {
+                leaderboardDiv.innerHTML += `${entry.user}: ${entry.points} pkt<br>`;
+            });
+        });
+    }
+
+    // -------------------------
+    // GŁÓWNE PROCESY
+    // -------------------------
+    loadAll();
+
+    document.getElementById("leaderboardBtn").onclick = () => {
+        const username = prompt("Podaj swój nick do leaderboard:");
+        if(!username) return;
+
+        const points = totalPoints || 0;
+        saveScore(username, points);
+        showLeaderboard();
+    };
+
 });
