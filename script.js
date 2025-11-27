@@ -91,10 +91,13 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 // Rejestracja użytkownika
                 userRef.set({
+                    username: username, // Zapisywanie nazwy użytkownika w bazie
                     points: 0,
                     homePoint: null
                 });
                 alert("Konto zostało utworzone!");
+                currentUser = username;
+                toggleLoginUI(false); // Ukrycie przycisków po rejestracji
             }
         });
     }
@@ -112,6 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 homePoint = userData.homePoint;
                 loadAll();
                 alert("Zalogowano pomyślnie!");
+                toggleLoginUI(false); // Ukrycie przycisków po zalogowaniu
                 showLeaderboard();
             } else {
                 alert("Brak konta o takim nicku.");
@@ -128,8 +132,39 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    function toggleLoginUI(isLoggedIn) {
+        // Ukrywanie przycisków logowania i rejestracji
+        const loginBtn = document.getElementById("loginBtn");
+        const registerBtn = document.getElementById("registerBtn");
+        const leaderboardBtn = document.getElementById("leaderboardBtn");
+        const logoutBtn = document.getElementById("logoutBtn");
+        
+        if (isLoggedIn) {
+            loginBtn.style.display = 'none';
+            registerBtn.style.display = 'none';
+            leaderboardBtn.style.display = 'block';
+            logoutBtn.style.display = 'block';
+        } else {
+            loginBtn.style.display = 'block';
+            registerBtn.style.display = 'block';
+            leaderboardBtn.style.display = 'none';
+            logoutBtn.style.display = 'none';
+        }
+    }
+
+    function logout() {
+        currentUser = null;
+        totalPoints = 0;
+        homePoint = null;
+        saveAll();
+        saveScore();
+        toggleLoginUI(true); // Pokazanie przycisków logowania po wylogowaniu
+        alert("Wylogowano pomyślnie!");
+    }
+
     document.getElementById("loginBtn").onclick = login;
     document.getElementById("registerBtn").onclick = register;
+    document.getElementById("logoutBtn").onclick = logout;
 
     // -------------------------
     // LEADERBOARD
@@ -142,7 +177,9 @@ document.addEventListener("DOMContentLoaded", () => {
         db.ref('users').orderByChild('points').limitToLast(10).once('value', snapshot => {
             const data = [];
             snapshot.forEach(child => {
-                data.push(child.val());
+                const entry = child.val();
+                entry.username = child.key; // Dodajemy username z klucza
+                data.push(entry);
             });
             data.sort((a, b) => b.points - a.points);
             data.forEach(entry => {
@@ -195,7 +232,6 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("points").textContent = totalPoints;
 
         saveAll();
-        saveScore();
     });
 
     // -------------------------
@@ -241,20 +277,5 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("points").textContent = totalPoints;
     }
 
-    // -------------------------
-    // RESET PUNKTÓW
-    // -------------------------
-    document.getElementById("resetPoints").onclick = () => {
-        if (!confirm("Na pewno chcesz zresetować wszystkie punkty?")) return;
-
-        totalPoints = 0;
-        localStorage.setItem("totalPoints", totalPoints);
-        document.getElementById("points").textContent = totalPoints;
-        saveScore();
-    };
-
-    // -------------------------
-    // START
-    // -------------------------
-    loadAll();
+    loadAll();  // Załadowanie zapisanych danych
 });
