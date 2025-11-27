@@ -208,4 +208,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     loadAll(); // ładujemy dane po starcie strony
+
+    // Funkcja do dodawania punktów do użytkownika
+    function addPoints(points) {
+        if (!currentUser) return;
+        totalPoints += points;
+        document.getElementById("points").textContent = totalPoints;
+        saveUserData(); // Zapisz dane użytkownika w Firebase
+        showLeaderboard(); // Aktualizuj leaderboard po dodaniu punktów
+    }
+
+    // Przykładowe dodanie punktów
+    document.getElementById("addPointsBtn").addEventListener("click", () => {
+        addPoints(10); // Dodaje 10 punktów
+    });
 });
