@@ -1,8 +1,8 @@
  body { margin:0; font-family: Arial; display:flex; flex-direction: row; height:100vh; }
-        #map { flex:1; height:100%; }
+        #map { flex:1; height:100%; width:100%; }
         #sidebar {
-            width: 300px;
-            height: 350px;
+            width: 500px;
+            height: 400px;
             padding: 10px;
             background: #f0f0f0;
             overflow-y: auto;
@@ -39,3 +39,4 @@
     color: rgb(255, 255, 255);
 
 }
+
