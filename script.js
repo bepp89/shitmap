@@ -1,8 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-
-    // -------------------------
-    // MAPA
-    // -------------------------
     const map = L.map('map').setView([53.126, 18.010], 13);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -27,9 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
         iconSize: [30, 30],
     });
 
-    // -------------------------
-    // FIREBASE CONFIG
-    // -------------------------
+    // Firebase configuration
     const firebaseConfig = {
         apiKey: "AIzaSyCFuKV9PLYejoUY8LZuX0ng22c_sQiidQw",
         authDomain: "shitmap-bda58.firebaseapp.com",
@@ -66,6 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 loadUserData();
                 document.getElementById("loginPanel").style.display = "none";
                 document.getElementById("statsPanel").style.display = "block";
+                showLeaderboard(); // Aktualizuj leaderboard po zalogowaniu
             } else {
                 document.getElementById("loginMessage").textContent = "Nieprawidłowe hasło!";
             }
@@ -165,27 +160,32 @@ document.addEventListener("DOMContentLoaded", () => {
     // -------------------------
     function showLeaderboard() {
         const leaderboardDiv = document.getElementById('leaderboard');
-        leaderboardDiv.style.display = 'block';
         leaderboardDiv.innerHTML = "<b>Leaderboard:</b><br>";
 
-        db.ref('users').get().then(snapshot => {
-            const arr = [];
-            snapshot.forEach(child => {
-                const data = child.val();
-                arr.push({ username: child.key, points: data.points || 0 });
-            });
+        db.ref('users').orderByChild('points').once('value')
+            .then(snapshot => {
+                const users = [];
+                snapshot.forEach(childSnapshot => {
+                    const username = childSnapshot.key;
+                    const data = childSnapshot.val();
+                    users.push({ username: username, points: data.points });
+                });
 
-            arr.sort((a,b) => b.points - a.points);
-            arr.forEach(user => {
-                leaderboardDiv.innerHTML += `${user.username}: ${user.points} pkt<br>`;
+                // Sortujemy użytkowników po punktach (malejąco)
+                users.sort((a, b) => b.points - a.points);
+
+                // Wyświetlamy liderów
+                users.forEach(user => {
+                    leaderboardDiv.innerHTML += `${user.username}: ${user.points} pkt<br>`;
+                });
+
+                leaderboardDiv.style.display = 'block'; // Upewniamy się, że leaderboard jest widoczny
+            })
+            .catch(error => {
+                console.error("Błąd pobierania leaderboarda:", error);
+                leaderboardDiv.innerHTML = "<b>Wystąpił błąd podczas ładowania leaderboarda.</b>";
             });
-        }).catch(err => {
-            console.error("Błąd pobierania leaderboarda:", err);
-            leaderboardDiv.innerHTML = "<b>Wystąpił błąd podczas ładowania leaderboarda.</b>";
-        });
     }
-
-    showLeaderboard(); // pokazujemy leaderboard od razu po wejściu
 
     // -------------------------
     // ZAPISY I USUWANIE PINEZEK
@@ -197,22 +197,6 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("points").textContent = totalPoints;
 
         saveUserData(); // zapisujemy do Firebase
-    }
-
-    function loadAll() {
-        const saved = JSON.parse(localStorage.getItem('markers')) || [];
-        markerCount = saved.length;
-
-        saved.forEach(obj => {
-            const marker = L.marker(obj.coords, { icon: blueIcon }).addTo(map);
-            marker.bindPopup(`
-                <b>${obj.desc}</b><br><br>
-                <button onclick="deleteMarker(${obj.id})">Usuń pinezkę</button>
-            `);
-            markers.push(obj);
-        });
-
-        document.getElementById('count').textContent = markerCount;
     }
 
     function saveUserData() {
