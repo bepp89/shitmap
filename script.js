@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let selectingHome = false;
     let totalPoints = 0;
     let currentUser = null;
+    let storedPassword = null;
 
     const redIcon = L.icon({
         iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
@@ -65,37 +66,39 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
     function saveHomePoint() {
-    if (!currentUser || !homePoint) return;
+        if (!currentUser || !homePoint) return;
+        db.ref("users/" + currentUser).update({
+            homePoint: {
+                lat: homePoint.lat,
+                lon: homePoint.lon
+            }
+        });
+    }
 
-    db.ref("users/" + currentUser + "/homePoint").set({
-        lat: homePoint.lat,
-        lon: homePoint.lon
-    });
-}
-function loadHomePoint() {
-    if (!currentUser) return;
+    function loadHomePoint() {
+        if (!currentUser) return;
 
-    db.ref("users/" + currentUser + "/homePoint").once("value", snapshot => {
-        if (!snapshot.exists()) return;
+        db.ref("users/" + currentUser + "/homePoint").once("value", snapshot => {
+            if (!snapshot.exists()) return;
 
-        const hp = snapshot.val();
-        homePoint = { lat: hp.lat, lon: hp.lon };
+            const hp = snapshot.val();
+            homePoint = { lat: hp.lat, lon: hp.lon };
 
-        if (homeMarker) homeMarker.remove();
+            if (homeMarker) homeMarker.remove();
 
-        homeMarker = L.marker([hp.lat, hp.lon], { icon: redIcon })
-            .addTo(map)
-            .bindPopup("<b>Punkt startowy</b>");
+            homeMarker = L.marker([hp.lat, hp.lon], { icon: redIcon })
+                .addTo(map)
+                .bindPopup("<b>Punkt startowy</b>");
 
-        map.setView([hp.lat, hp.lon], 15);
-    });
-}
-
+            map.setView([hp.lat, hp.lon], 15);
+        });
+    }
 
     function saveScore() {
         if (!currentUser) return;
-        db.ref('users/' + currentUser).set({ points: totalPoints });
+        db.ref('users/' + currentUser).update({ points: totalPoints });
         updateLeaderboard();
     }
 
@@ -131,7 +134,7 @@ function loadHomePoint() {
             if (snapshot.exists()) {
                 const stored = snapshot.val();
                 if (stored.password !== password) { loginMessage.textContent = "Nieprawidłowe hasło!"; return; }
-                // zalogowano
+                storedPassword = stored.password;
                 loginUser(username, stored.points || 0);
             } else { loginMessage.textContent = "Nie znaleziono użytkownika!"; }
         });
@@ -146,6 +149,7 @@ function loadHomePoint() {
             if (snapshot.exists()) { loginMessage.textContent = "Użytkownik już istnieje!"; return; }
             // utwórz konto
             db.ref('users/' + username).set({ password: password, points: 0 });
+            storedPassword = password;
             loginUser(username, 0);
         });
     };
