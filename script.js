@@ -1,4 +1,4 @@
-nie wyswietla mi sie leaderboard w tym kodzie document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
     const map = L.map('map').setView([53.126, 18.010], 13);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
