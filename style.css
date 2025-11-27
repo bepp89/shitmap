@@ -1,0 +1,39 @@
+ body { margin:0; font-family: Arial; display:flex; flex-direction: row; height:100vh; }
+        #map { flex:1; height:100%; }
+        #sidebar {
+            width: 300px;
+            padding: 10px;
+            background: #f0f0f0;
+            overflow-y: auto;
+        }
+        .panel { margin-bottom: 10px; }
+        button { cursor: pointer; width:100%; padding:10px; font-size:16px; border:none; border-radius:5px; margin-top:5px; }
+        #resetPoints { background-color:#f44336; color:white; }
+        #loginBtn, #leaderboardBtn { background-color:#2196F3; color:white; }
+        @media(max-width:768px){
+            body { flex-direction: column; }
+            #sidebar { width:100%; height: auto; order:2; }
+            #map { height:60vh; }
+            button { font-size:18px; padding:12px; }
+        }
+#changeAddress{
+    border-radius: 10px;
+    background-color: rgb(180, 180, 180);
+    color: rgb(0, 0, 0);
+}
+#setHomeOnMap{
+    margin-top: 20px;
+    border-radius: 10px;
+    background-color: rgb(180, 180, 180);
+    color: rgb(0, 0, 0);
+}
+#loginBtn{
+    border-radius: 10px;
+    background-color: rgb(128, 159, 216);
+    color: rgb(255, 255, 255); 
+}
+#leaderboardBtn{
+    border-radius: 10px;
+    background-color: rgb(128, 159, 216);
+    color: rgb(255, 255, 255);
+}

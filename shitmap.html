@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Mapa Pinezek</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="map"></div>
+    <div id="sidebar">
+        <div class="panel">
+            <button id="loginBtn">Zaloguj</button>
+            <button id="leaderboardBtn">Leaderboard</button>
+        </div>
+        <div class="panel">
+            <b>Liczba pinezek:</b> <span id="count">0</span>
+        </div>
+        <div class="panel">
+            <b>Odległość ostatniej pinezki:</b> <span id="distance">0 m</span>
+        </div>
+        <div class="panel" style="display:flex; align-items:center;">
+            <span style="border: 2px solid #4CAF50; padding: 8px 15px; border-radius: 10px; font-size:20px; color:#4CAF50; margin-right:10px;">
+                Punkty: <span id="points">0</span>
+            </span>
+            <button id="resetPoints">Resetuj</button>
+        </div>
+        <div class="panel">
+            <button id="changeAddress">Ustaw punkt startowy (adres/kod)</button>
+            <button id="setHomeOnMap">Ustaw punkt startowy na mapie</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
