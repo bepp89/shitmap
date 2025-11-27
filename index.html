@@ -4,33 +4,43 @@
     <meta charset="UTF-8">
     <title>Mapa Pinezek</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="style.css">
+    <!-- favicon -->
+    <link rel="icon" href="favicon.jpg" type="image/x-icon">
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
     <div id="map"></div>
+
     <div id="sidebar">
         <div class="panel">
-            <button id="loginBtn">Zaloguj</button>
-            <button id="leaderboardBtn">Leaderboard</button>
+            <b>Liczba pinezek:</b>
+            <span id="count">0</span>
         </div>
+
         <div class="panel">
-            <b>Liczba pinezek:</b> <span id="count">0</span>
+            <b>Odległość ostatniej pinezki:</b>
+            <span id="distance">0 m</span>
         </div>
-        <div class="panel">
-            <b>Odległość ostatniej pinezki:</b> <span id="distance">0 m</span>
-        </div>
-        <div class="panel" style="display:flex; align-items:center;">
-            <span style="border: 2px solid #4CAF50; padding: 8px 15px; border-radius: 10px; font-size:20px; color:#4CAF50; margin-right:10px;">
+
+        <div class="panel" style="display: flex; align-items: center;">
+            <span style="border: 2px solid #4CAF50; padding: 8px 15px; border-radius: 10px; font-size: 20px; color: #4CAF50; margin-right: 10px;">
                 Punkty: <span id="points">0</span>
             </span>
-            <button id="resetPoints">Resetuj</button>
+            <button id="resetPoints" style="padding: 8px 12px; border-radius: 8px; background-color: #f44336; color: white; border: none;">
+                Resetuj
+            </button>
         </div>
+
         <div class="panel">
             <button id="changeAddress">Ustaw punkt startowy (adres/kod)</button>
             <button id="setHomeOnMap">Ustaw punkt startowy na mapie</button>
+            <button id="leaderboardBtn">Leaderboard</button>
+            <div id="leaderboard" style="display:none; background:white; padding:10px; margin-top:10px; border-radius:5px; max-height:300px; overflow:auto;"></div>
         </div>
     </div>
 
