@@ -58,9 +58,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 totalPoints = data.points || 0;
                 homePoint = data.homePoint || null;
                 loadUserData();
+
+                // Ukryj panel logowania, a pokaż panel z danymi
                 document.getElementById("loginPanel").style.display = "none";
                 document.getElementById("statsPanel").style.display = "block";
-                showLeaderboard(); // Aktualizuj leaderboard po zalogowaniu
+                document.getElementById("leaderboardPanel").style.display = "block";
+
+                // Zaktualizuj leaderboard
+                showLeaderboard(); 
             } else {
                 document.getElementById("loginMessage").textContent = "Nieprawidłowe hasło!";
             }
@@ -92,6 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("Konto utworzone! Zaloguj się.");
     }
 
+    // Dodajemy event listener do przycisków logowania i rejestracji
     document.getElementById("loginBtn").addEventListener("click", login);
     document.getElementById("createAccountBtn").addEventListener("click", register);
 
