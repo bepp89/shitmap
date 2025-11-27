@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-
     // -------------------------
     // MAPA NA BYDGOSZCZ
     // -------------------------
@@ -14,7 +13,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let homePoint = null;
     let homeMarker = null;
     let selectingHome = false;
-
     let totalPoints = 0;
     let currentUser = null;
 
@@ -29,146 +27,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // -------------------------
-    // FUNKCJA OBLICZANIA ODLEGŁOŚCI (metry)
-    // -------------------------
-    function distance(lat1, lon1, lat2, lon2) {
-        const R = 6371000;
-        const toRad = x => x * Math.PI / 180;
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-
-        const a =
-            Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
-
-        return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-    }
-
-    // -------------------------
-    // GEOKODOWANIE ADRESU / KODU
-    // -------------------------
-    async function geocodeAddress(address) {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=pl`;
-
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.length === 0) return null;
-
-        return {
-            lat: parseFloat(data[0].lat),
-            lon: parseFloat(data[0].lon)
-        };
-    }
-
-    // -------------------------
-    // FIREBASE CONFIG
-    // -------------------------
-    const firebaseConfig = {
-        apiKey: "AIzaSyCFuKV9PLYejoUY8LZuX0ng22c_sQiidQw",
-        authDomain: "shitmap-bda58.firebaseapp.com",
-        databaseURL: "https://shitmap-bda58-default-rtdb.firebaseio.com",
-        projectId: "shitmap-bda58",
-        storageBucket: "shitmap-bda58.firebasestorage.app",
-        messagingSenderId: "845888799744",
-        appId: "1:845888799744:web:9b32c6c6dc99224e5604e5",
-        measurementId: "G-H0M7FEWJZZ"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    // -------------------------
-    // LOGIN / REGISTER
-    // -------------------------
-    async function login() {
-        let username = prompt("Podaj nazwę użytkownika:");
-        if (!username) return;
-        let password = prompt("Podaj hasło:");
-
-        const snapshot = await db.ref('users/' + username).get();
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            if (data.password === password) {
-                alert("Zalogowano!");
-                currentUser = username;
-                totalPoints = data.points || 0;
-                homePoint = data.homePoint || null;
-                loadUserData();
-            } else {
-                alert("Nieprawidłowe hasło!");
-                login();
-            }
-        } else {
-            alert("Nie ma takiego użytkownika.");
-        }
-    }
-
-    async function register() {
-        let username = prompt("Podaj nazwę użytkownika:");
-        if (!username) return;
-        let password = prompt("Podaj hasło:");
-
-        const snapshot = await db.ref('users/' + username).get();
-        if (snapshot.exists()) {
-            alert("Taka nazwa już istnieje!");
-            return;
-        }
-
-        await db.ref('users/' + username).set({
-            password: password,
-            points: 0,
-            homePoint: null
-        });
-        alert("Konto utworzone! Zaloguj się.");
-    }
-
-    document.getElementById("leaderboardBtn").insertAdjacentHTML("beforebegin", `<button id="registerBtn">Utwórz konto</button>`);
-    document.getElementById("registerBtn").onclick = register;
-
-    login(); // wywołujemy okno logowania od razu po wejściu
-
-    // -------------------------
-    // LOAD USER DATA
-    // -------------------------
-    function loadUserData() {
-        document.getElementById("points").textContent = totalPoints;
-        if (homePoint) {
-            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-                .addTo(map)
-                .bindPopup("<b>Punkt startowy</b>");
-            map.setView([homePoint.lat, homePoint.lon], 15);
-        }
-
-        // Load markers saved in Firebase (optional, można rozszerzyć)
-        // Na razie markers są lokalne
-    }
-
-    // -------------------------
-    // SAVE USER DATA
-    // -------------------------
-    function saveUserData() {
-        if (!currentUser) return;
-        db.ref('users/' + currentUser).update({
-            points: totalPoints,
-            homePoint: homePoint
-        });
-    }
-
-    // -------------------------
-    // ZAPIS / ODCZYT LOKALNY
+    // ZAPIS / ODCZYT
     // -------------------------
     function saveAll() {
         localStorage.setItem('markers', JSON.stringify(markers));
         localStorage.setItem('markerCount', markerCount);
+        localStorage.setItem('homePoint', JSON.stringify(homePoint));
+        localStorage.setItem('totalPoints', totalPoints);
         document.getElementById('count').textContent = markerCount;
         document.getElementById("points").textContent = totalPoints;
-
-        saveUserData(); // zapisujemy do Firebase
     }
 
     function loadAll() {
         const saved = JSON.parse(localStorage.getItem('markers')) || [];
+        const savedHome = JSON.parse(localStorage.getItem('homePoint'));
+
+        if (savedHome) {
+            homePoint = savedHome;
+            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
+                .addTo(map)
+                .bindPopup("<b>Punkt startowy</b>");
+        }
+
         markerCount = saved.length;
 
         saved.forEach(obj => {
@@ -184,25 +64,114 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // -------------------------
+    // FUNKCJE LOGOWANIA I REJESTRACJI
+    // -------------------------
+    const firebaseConfig = {
+        apiKey: "AIzaSyCFuKV9PLYejoUY8LZuX0ng22c_sQiidQw",
+        authDomain: "shitmap-bda58.firebaseapp.com",
+        databaseURL: "https://shitmap-bda58-default-rtdb.firebaseio.com",
+        projectId: "shitmap-bda58",
+        storageBucket: "shitmap-bda58.firebasestorage.app",
+        messagingSenderId: "845888799744",
+        appId: "1:845888799744:web:9b32c6c6dc99224e5604e5",
+        measurementId: "G-H0M7FEWJZZ"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    async function register() {
+        const username = prompt("Wybierz unikalny nick:");
+        if (!username) return;
+
+        const userRef = db.ref('users/' + username);
+        userRef.get().then(snapshot => {
+            if (snapshot.exists()) {
+                alert("Taki użytkownik już istnieje!");
+            } else {
+                // Rejestracja użytkownika
+                userRef.set({
+                    points: 0,
+                    homePoint: null
+                });
+                alert("Konto zostało utworzone!");
+            }
+        });
+    }
+
+    async function login() {
+        const username = prompt("Podaj swój nick:");
+        if (!username) return;
+
+        const userRef = db.ref('users/' + username);
+        userRef.get().then(snapshot => {
+            if (snapshot.exists()) {
+                currentUser = username;
+                const userData = snapshot.val();
+                totalPoints = userData.points;
+                homePoint = userData.homePoint;
+                loadAll();
+                alert("Zalogowano pomyślnie!");
+                showLeaderboard();
+            } else {
+                alert("Brak konta o takim nicku.");
+            }
+        });
+    }
+
+    function saveScore() {
+        if (!currentUser) return;
+        const ref = db.ref('users/' + currentUser);
+        ref.update({
+            points: totalPoints,
+            homePoint: homePoint
+        });
+    }
+
+    document.getElementById("loginBtn").onclick = login;
+    document.getElementById("registerBtn").onclick = register;
+
+    // -------------------------
+    // LEADERBOARD
+    // -------------------------
+    function showLeaderboard() {
+        const leaderboardDiv = document.getElementById('leaderboard');
+        leaderboardDiv.style.display = 'block';
+        leaderboardDiv.innerHTML = "<b>Leaderboard:</b><br>";
+
+        db.ref('users').orderByChild('points').limitToLast(10).once('value', snapshot => {
+            const data = [];
+            snapshot.forEach(child => {
+                data.push(child.val());
+            });
+            data.sort((a, b) => b.points - a.points);
+            data.forEach(entry => {
+                leaderboardDiv.innerHTML += `${entry.username}: ${entry.points} pkt<br>`;
+            });
+        });
+    }
+
+    // -------------------------
+    // FUNKCJA OBLICZANIA ODLEGŁOŚCI (metry)
+    // -------------------------
+    function distance(lat1, lon1, lat2, lon2) {
+        const R = 6371000; 
+        const toRad = x => x * Math.PI / 180;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+
+        const a =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) ** 2;
+
+        return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    }
+
+    // -------------------------
     // KLIK W MAPĘ
     // -------------------------
-    map.on("click", async (e) => {
-        if (!currentUser) { alert("Zaloguj się!"); return; }
-
-        if (selectingHome) {
-            selectingHome = false;
-
-            homePoint = { lat: e.latlng.lat, lon: e.latlng.lng };
-            if (homeMarker) homeMarker.remove();
-
-            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-                .addTo(map)
-                .bindPopup("<b>Punkt startowy</b>");
-
-            saveAll();
-            return;
-        }
-
+    map.on("click", (e) => {
         if (!homePoint) { alert("Najpierw ustaw punkt startowy!"); return; }
 
         const coords = [e.latlng.lat, e.latlng.lng];
@@ -219,14 +188,14 @@ document.addEventListener("DOMContentLoaded", () => {
         markerCount++;
 
         const dist = distance(homePoint.lat, homePoint.lon, coords[0], coords[1]);
-        const pts = Math.floor(dist * 0.1);
+        const pts = Math.floor(dist * 0.1); // 100m = 10 pkt
         totalPoints += pts;
 
         document.getElementById("distance").textContent = dist + " m";
         document.getElementById("points").textContent = totalPoints;
 
         saveAll();
-        showLeaderboard(); // aktualizujemy leaderboard
+        saveScore();
     });
 
     // -------------------------
@@ -279,60 +248,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!confirm("Na pewno chcesz zresetować wszystkie punkty?")) return;
 
         totalPoints = 0;
+        localStorage.setItem("totalPoints", totalPoints);
         document.getElementById("points").textContent = totalPoints;
-        saveAll();
+        saveScore();
     };
 
     // -------------------------
-    // USTAWIENIE ADRESU / KODU
+    // START
     // -------------------------
-    async function askForAddress() {
-        const address = prompt("Podaj adres lub kod pocztowy:");
-
-        if (!address) return;
-
-        const result = await geocodeAddress(address);
-        if (!result) { alert("Nie znaleziono lokalizacji."); return; }
-
-        homePoint = { lat: result.lat, lon: result.lon };
-        saveAll();
-
-        if (homeMarker) homeMarker.remove();
-
-        homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-            .addTo(map)
-            .bindPopup("<b>Punkt startowy</b>");
-
-        map.setView([homePoint.lat, homePoint.lon], 15);
-    }
-    document.getElementById("changeAddress").onclick = askForAddress;
-    document.getElementById("setHomeOnMap").onclick = () => {
-        selectingHome = true;
-        alert("Kliknij na mapie, aby ustawić punkt startowy.");
-    };
-
-    // -------------------------
-    // LEADERBOARD
-    // -------------------------
-    function showLeaderboard() {
-        const leaderboardDiv = document.getElementById('leaderboard');
-        leaderboardDiv.style.display = 'block';
-        leaderboardDiv.innerHTML = "<b>Leaderboard:</b><br>";
-
-        db.ref('users').get().then(snapshot => {
-            const arr = [];
-            snapshot.forEach(child => {
-                const data = child.val();
-                arr.push({ username: child.key, points: data.points || 0 });
-            });
-
-            arr.sort((a,b) => b.points - a.points);
-            arr.forEach(user => {
-                leaderboardDiv.innerHTML += `${user.username}: ${user.points} pkt<br>`;
-            });
-        });
-    }
-
-    showLeaderboard(); // pokazujemy leaderboard od razu po wejściu
     loadAll();
 });
