@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
 
     // -------------------------
-    // MAPA NA BYDGOSZCZ
+    // MAPA
     // -------------------------
     const map = L.map('map').setView([53.126, 18.010], 13);
 
@@ -14,7 +14,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let homePoint = null;
     let homeMarker = null;
     let selectingHome = false;
-
     let totalPoints = 0;
     let currentUser = null;
 
@@ -116,61 +115,50 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // -------------------------
-    // SAVE USER DATA
+    // GEOKODOWANIE ADRESU / KODU
     // -------------------------
-    function saveUserData() {
-        if (!currentUser) return;
-        db.ref('users/' + currentUser).update({
-            points: totalPoints,
-            homePoint: homePoint
-        });
-    }
+    async function geocodeAddress(address) {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=pl`;
 
-    // -------------------------
-    // KLIK W MAPĘ
-    // -------------------------
-    map.on("click", async (e) => {
-        if (!currentUser) { alert("Zaloguj się!"); return; }
+        const response = await fetch(url);
+        const data = await response.json();
 
-        if (selectingHome) {
-            selectingHome = false;
-
-            homePoint = { lat: e.latlng.lat, lon: e.latlng.lng };
-            if (homeMarker) homeMarker.remove();
-
-            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-                .addTo(map)
-                .bindPopup("<b>Punkt startowy</b>");
-
-            saveAll();
-            return;
+        if (data.length === 0) {
+            alert("Nie znaleziono lokalizacji.");
+            return null;
         }
 
-        if (!homePoint) { alert("Najpierw ustaw punkt startowy!"); return; }
+        return {
+            lat: parseFloat(data[0].lat),
+            lon: parseFloat(data[0].lon)
+        };
+    }
 
-        const coords = [e.latlng.lat, e.latlng.lng];
-        const desc = prompt("Podaj opis pinezki:") || "Brak opisu";
-        const id = Date.now();
+    async function askForAddress() {
+        const address = prompt("Podaj adres lub kod pocztowy:");
 
-        const marker = L.marker(coords, { icon: blueIcon }).addTo(map);
-        marker.bindPopup(`
-            <b>${desc}</b><br><br>
-            <button onclick="deleteMarker(${id})">Usuń pinezkę</button>
-        `);
+        if (!address) return;
 
-        markers.push({ id, coords, desc });
-        markerCount++;
+        const result = await geocodeAddress(address);
+        if (!result) return;
 
-        const dist = distance(homePoint.lat, homePoint.lon, coords[0], coords[1]);
-        const pts = Math.floor(dist * 0.1);
-        totalPoints += pts;
-
-        document.getElementById("distance").textContent = dist + " m";
-        document.getElementById("points").textContent = totalPoints;
-
+        homePoint = { lat: result.lat, lon: result.lon };
         saveAll();
-        showLeaderboard(); // aktualizujemy leaderboard
-    });
+
+        if (homeMarker) homeMarker.remove();
+
+        homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
+            .addTo(map)
+            .bindPopup("<b>Punkt startowy</b>");
+
+        map.setView([homePoint.lat, homePoint.lon], 15);
+    }
+
+    document.getElementById("changeAddress").onclick = askForAddress;
+    document.getElementById("setHomeOnMap").onclick = () => {
+        selectingHome = true;
+        alert("Kliknij na mapie, aby ustawić punkt startowy.");
+    };
 
     // -------------------------
     // LEADERBOARD
@@ -200,46 +188,40 @@ document.addEventListener("DOMContentLoaded", () => {
     showLeaderboard(); // pokazujemy leaderboard od razu po wejściu
 
     // -------------------------
-    // USTAWIENIE ADRESU / KODU
+    // ZAPISY I USUWANIE PINEZEK
     // -------------------------
-    async function askForAddress() {
-        const address = prompt("Podaj adres lub kod pocztowy:");
+    function saveAll() {
+        localStorage.setItem('markers', JSON.stringify(markers));
+        localStorage.setItem('markerCount', markerCount);
+        document.getElementById('count').textContent = markerCount;
+        document.getElementById("points").textContent = totalPoints;
 
-        if (!address) return;
-
-        const result = await geocodeAddress(address);
-        if (!result) { alert("Nie znaleziono lokalizacji."); return; }
-
-        homePoint = { lat: result.lat, lon: result.lon };
-        saveAll();
-
-        if (homeMarker) homeMarker.remove();
-
-        homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-            .addTo(map)
-            .bindPopup("<b>Punkt startowy</b>");
-
-        map.setView([homePoint.lat, homePoint.lon], 15);
+        saveUserData(); // zapisujemy do Firebase
     }
 
-    async function geocodeAddress(address) {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=pl`;
+    function loadAll() {
+        const saved = JSON.parse(localStorage.getItem('markers')) || [];
+        markerCount = saved.length;
 
-        const response = await fetch(url);
-        const data = await response.json();
+        saved.forEach(obj => {
+            const marker = L.marker(obj.coords, { icon: blueIcon }).addTo(map);
+            marker.bindPopup(`
+                <b>${obj.desc}</b><br><br>
+                <button onclick="deleteMarker(${obj.id})">Usuń pinezkę</button>
+            `);
+            markers.push(obj);
+        });
 
-        if (data.length === 0) return null;
-
-        return {
-            lat: parseFloat(data[0].lat),
-            lon: parseFloat(data[0].lon)
-        };
+        document.getElementById('count').textContent = markerCount;
     }
 
-    document.getElementById("changeAddress").onclick = askForAddress;
-    document.getElementById("setHomeOnMap").onclick = () => {
-        selectingHome = true;
-        alert("Kliknij na mapie, aby ustawić punkt startowy.");
-    };
+    function saveUserData() {
+        if (!currentUser) return;
+        db.ref('users/' + currentUser).update({
+            points: totalPoints,
+            homePoint: homePoint
+        });
+    }
 
+    loadAll(); // ładujemy dane po starcie strony
 });
