@@ -65,6 +65,33 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    function saveHomePoint() {
+    if (!currentUser || !homePoint) return;
+
+    db.ref("users/" + currentUser + "/homePoint").set({
+        lat: homePoint.lat,
+        lon: homePoint.lon
+    });
+}
+function loadHomePoint() {
+    if (!currentUser) return;
+
+    db.ref("users/" + currentUser + "/homePoint").once("value", snapshot => {
+        if (!snapshot.exists()) return;
+
+        const hp = snapshot.val();
+        homePoint = { lat: hp.lat, lon: hp.lon };
+
+        if (homeMarker) homeMarker.remove();
+
+        homeMarker = L.marker([hp.lat, hp.lon], { icon: redIcon })
+            .addTo(map)
+            .bindPopup("<b>Punkt startowy</b>");
+
+        map.setView([hp.lat, hp.lon], 15);
+    });
+}
+
 
     function saveScore() {
         if (!currentUser) return;
@@ -131,6 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
         leaderboardPanel.style.display = "block";
         document.getElementById("points").textContent = totalPoints;
         updateLeaderboard();
+        loadHomePoint();
     }
 
     // -------------------------
@@ -143,6 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await geocodeAddress(address);
         if (!result) { alert("Nie znaleziono lokalizacji."); return; }
         homePoint = { lat: result.lat, lon: result.lon };
+        saveHomePoint();
         if (homeMarker) homeMarker.remove();
         homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon }).addTo(map).bindPopup("<b>Punkt startowy</b>");
         map.setView([homePoint.lat, homePoint.lon], 15);
@@ -153,6 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (selectingHome) {
             selectingHome = false;
             homePoint = { lat: e.latlng.lat, lon: e.latlng.lng };
+            saveHomePoint();
             if (homeMarker) homeMarker.remove();
             homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon }).addTo(map).bindPopup("<b>Punkt startowy</b>");
             return;
