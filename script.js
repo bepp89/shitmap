@@ -1,20 +1,15 @@
 document.addEventListener("DOMContentLoaded", () => {
-
     // -------------------------
     // MAPA NA BYDGOSZCZ
     // -------------------------
     const map = L.map('map').setView([53.126, 18.010], 13);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-    }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
     let markers = [];
     let markerCount = 0;
     let homePoint = null;
     let homeMarker = null;
     let selectingHome = false;
-
     let totalPoints = 0;
     let currentUser = null;
 
@@ -22,7 +17,6 @@ document.addEventListener("DOMContentLoaded", () => {
         iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
         iconSize: [38, 38],
     });
-
     const blueIcon = L.icon({
         iconUrl: "https://cdn-icons-png.flaticon.com/512/8277/8277628.png",
         iconSize: [30, 30],
@@ -50,20 +44,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // -------------------------
     async function geocodeAddress(address) {
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=pl`;
-
         const response = await fetch(url);
         const data = await response.json();
-
         if (data.length === 0) return null;
-
-        return {
-            lat: parseFloat(data[0].lat),
-            lon: parseFloat(data[0].lon)
-        };
+        return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
     }
 
     // -------------------------
-    // FIREBASE CONFIG
+    // FIREBASE
     // -------------------------
     const firebaseConfig = {
         apiKey: "AIzaSyCFuKV9PLYejoUY8LZuX0ng22c_sQiidQw",
@@ -78,155 +66,115 @@ document.addEventListener("DOMContentLoaded", () => {
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // -------------------------
-    // LOGIN / REGISTER
-    // -------------------------
-    async function login() {
-        let username = prompt("Podaj nazwę użytkownika:");
-        if (!username) return;
-        let password = prompt("Podaj hasło:");
-
-        const snapshot = await db.ref('users/' + username).get();
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            if (data.password === password) {
-                alert("Zalogowano!");
-                currentUser = username;
-                totalPoints = data.points || 0;
-                homePoint = data.homePoint || null;
-                loadUserData();
-            } else {
-                alert("Nieprawidłowe hasło!");
-                login();
-            }
-        } else {
-            alert("Nie ma takiego użytkownika.");
-        }
-    }
-
-    async function register() {
-        let username = prompt("Podaj nazwę użytkownika:");
-        if (!username) return;
-        let password = prompt("Podaj hasło:");
-
-        const snapshot = await db.ref('users/' + username).get();
-        if (snapshot.exists()) {
-            alert("Taka nazwa już istnieje!");
-            return;
-        }
-
-        await db.ref('users/' + username).set({
-            password: password,
-            points: 0,
-            homePoint: null
-        });
-        alert("Konto utworzone! Zaloguj się.");
-    }
-
-    document.getElementById("leaderboardBtn").insertAdjacentHTML("beforebegin", `<button id="registerBtn">Utwórz konto</button>`);
-    document.getElementById("registerBtn").onclick = register;
-
-    login(); // wywołujemy okno logowania od razu po wejściu
-
-    // -------------------------
-    // LOAD USER DATA
-    // -------------------------
-    function loadUserData() {
-        document.getElementById("points").textContent = totalPoints;
-        if (homePoint) {
-            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-                .addTo(map)
-                .bindPopup("<b>Punkt startowy</b>");
-            map.setView([homePoint.lat, homePoint.lon], 15);
-        }
-
-        // Load markers saved in Firebase (optional, można rozszerzyć)
-        // Na razie markers są lokalne
-    }
-
-    // -------------------------
-    // SAVE USER DATA
-    // -------------------------
-    function saveUserData() {
+    function saveScore() {
         if (!currentUser) return;
-        db.ref('users/' + currentUser).update({
-            points: totalPoints,
-            homePoint: homePoint
+        db.ref('users/' + currentUser).set({ points: totalPoints });
+        updateLeaderboard();
+    }
+
+    function updateLeaderboard() {
+        const leaderboardDiv = document.getElementById('leaderboard');
+        leaderboardDiv.innerHTML = "";
+        db.ref('users').orderByChild('points').once('value', snapshot => {
+            const data = [];
+            snapshot.forEach(child => {
+                data.push({ user: child.key, points: child.val().points || 0 });
+            });
+            data.sort((a,b) => b.points - a.points);
+            data.forEach(entry => {
+                leaderboardDiv.innerHTML += `${entry.user}: ${entry.points} pkt<br>`;
+            });
         });
     }
 
     // -------------------------
-    // ZAPIS / ODCZYT LOKALNY
+    // LOGOWANIE / REJESTRACJA
     // -------------------------
-    function saveAll() {
-        localStorage.setItem('markers', JSON.stringify(markers));
-        localStorage.setItem('markerCount', markerCount);
-        document.getElementById('count').textContent = markerCount;
+    const loginPanel = document.getElementById("loginPanel");
+    const statsPanel = document.getElementById("statsPanel");
+    const leaderboardPanel = document.getElementById("leaderboardPanel");
+    const loginMessage = document.getElementById("loginMessage");
+
+    document.getElementById("loginBtn").onclick = () => {
+        const username = document.getElementById("usernameInput").value.trim();
+        const password = document.getElementById("passwordInput").value.trim();
+        if (!username || !password) { loginMessage.textContent = "Podaj login i hasło!"; return; }
+
+        db.ref('users/' + username).once('value', snapshot => {
+            if (snapshot.exists()) {
+                const stored = snapshot.val();
+                if (stored.password !== password) { loginMessage.textContent = "Nieprawidłowe hasło!"; return; }
+                // zalogowano
+                loginUser(username, stored.points || 0);
+            } else { loginMessage.textContent = "Nie znaleziono użytkownika!"; }
+        });
+    };
+
+    document.getElementById("createAccountBtn").onclick = () => {
+        const username = document.getElementById("usernameInput").value.trim();
+        const password = document.getElementById("passwordInput").value.trim();
+        if (!username || !password) { loginMessage.textContent = "Podaj login i hasło!"; return; }
+
+        db.ref('users/' + username).once('value', snapshot => {
+            if (snapshot.exists()) { loginMessage.textContent = "Użytkownik już istnieje!"; return; }
+            // utwórz konto
+            db.ref('users/' + username).set({ password: password, points: 0 });
+            loginUser(username, 0);
+        });
+    };
+
+    function loginUser(username, points) {
+        currentUser = username;
+        totalPoints = points;
+        loginPanel.style.display = "none";
+        statsPanel.style.display = "block";
+        leaderboardPanel.style.display = "block";
         document.getElementById("points").textContent = totalPoints;
-
-        saveUserData(); // zapisujemy do Firebase
-    }
-
-    function loadAll() {
-        const saved = JSON.parse(localStorage.getItem('markers')) || [];
-        markerCount = saved.length;
-
-        saved.forEach(obj => {
-            const marker = L.marker(obj.coords, { icon: blueIcon }).addTo(map);
-            marker.bindPopup(`
-                <b>${obj.desc}</b><br><br>
-                <button onclick="deleteMarker(${obj.id})">Usuń pinezkę</button>
-            `);
-            markers.push(obj);
-        });
-
-        document.getElementById('count').textContent = markerCount;
+        updateLeaderboard();
     }
 
     // -------------------------
-    // KLIK W MAPĘ
+    // MAPA - KLIK
     // -------------------------
-    map.on("click", async (e) => {
-        if (!currentUser) { alert("Zaloguj się!"); return; }
+    document.getElementById("setHomeOnMap").onclick = () => { selectingHome = true; alert("Kliknij na mapie, aby ustawić punkt startowy."); };
+    document.getElementById("changeAddress").onclick = async () => {
+        const address = prompt("Podaj adres lub kod pocztowy:");
+        if (!address) return;
+        const result = await geocodeAddress(address);
+        if (!result) { alert("Nie znaleziono lokalizacji."); return; }
+        homePoint = { lat: result.lat, lon: result.lon };
+        if (homeMarker) homeMarker.remove();
+        homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon }).addTo(map).bindPopup("<b>Punkt startowy</b>");
+        map.setView([homePoint.lat, homePoint.lon], 15);
+    };
 
+    map.on("click", (e) => {
+        if (!currentUser) { alert("Najpierw zaloguj się!"); return; }
         if (selectingHome) {
             selectingHome = false;
-
             homePoint = { lat: e.latlng.lat, lon: e.latlng.lng };
             if (homeMarker) homeMarker.remove();
-
-            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-                .addTo(map)
-                .bindPopup("<b>Punkt startowy</b>");
-
-            saveAll();
+            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon }).addTo(map).bindPopup("<b>Punkt startowy</b>");
             return;
         }
-
         if (!homePoint) { alert("Najpierw ustaw punkt startowy!"); return; }
 
         const coords = [e.latlng.lat, e.latlng.lng];
         const desc = prompt("Podaj opis pinezki:") || "Brak opisu";
         const id = Date.now();
-
-        const marker = L.marker(coords, { icon: blueIcon }).addTo(map);
-        marker.bindPopup(`
-            <b>${desc}</b><br><br>
-            <button onclick="deleteMarker(${id})">Usuń pinezkę</button>
-        `);
+        L.marker(coords, { icon: blueIcon }).addTo(map).bindPopup(`<b>${desc}</b><br><br><button onclick="deleteMarker(${id})">Usuń pinezkę</button>`);
 
         markers.push({ id, coords, desc });
         markerCount++;
-
         const dist = distance(homePoint.lat, homePoint.lon, coords[0], coords[1]);
-        const pts = Math.floor(dist * 0.1);
+        const pts = Math.floor(dist * 0.1); // 100m=10pkt
         totalPoints += pts;
 
+        document.getElementById("count").textContent = markerCount;
         document.getElementById("distance").textContent = dist + " m";
         document.getElementById("points").textContent = totalPoints;
 
-        saveAll();
-        showLeaderboard(); // aktualizujemy leaderboard
+        saveScore();
     });
 
     // -------------------------
@@ -234,40 +182,26 @@ document.addEventListener("DOMContentLoaded", () => {
     // -------------------------
     window.deleteMarker = function(id) {
         const pin = markers.find(m => m.id === id);
-
         if (pin && homePoint) {
             const dist = distance(homePoint.lat, homePoint.lon, pin.coords[0], pin.coords[1]);
             const pts = Math.floor(dist * 0.1);
             totalPoints -= pts;
             if (totalPoints < 0) totalPoints = 0;
+            saveScore();
         }
-
         markers = markers.filter(m => m.id !== id);
         markerCount = markers.length;
-
         rebuildMap();
-        saveAll();
-
         document.getElementById("distance").textContent = "0 m";
     };
 
     function rebuildMap() {
         map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
-
-        if (homePoint) {
-            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-                .addTo(map)
-                .bindPopup("<b>Punkt startowy</b>");
-        }
-
+        if (homePoint) homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon }).addTo(map).bindPopup("<b>Punkt startowy</b>");
         markers.forEach(obj => {
             const m = L.marker(obj.coords, { icon: blueIcon }).addTo(map);
-            m.bindPopup(`
-                <b>${obj.desc}</b><br><br>
-                <button onclick="deleteMarker(${obj.id})">Usuń pinezkę</button>
-            `);
+            m.bindPopup(`<b>${obj.desc}</b><br><br><button onclick="deleteMarker(${obj.id})">Usuń pinezkę</button>`);
         });
-
         document.getElementById('count').textContent = markerCount;
         document.getElementById("points").textContent = totalPoints;
     }
@@ -277,62 +211,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // -------------------------
     document.getElementById("resetPoints").onclick = () => {
         if (!confirm("Na pewno chcesz zresetować wszystkie punkty?")) return;
-
         totalPoints = 0;
         document.getElementById("points").textContent = totalPoints;
-        saveAll();
+        saveScore();
     };
-
-    // -------------------------
-    // USTAWIENIE ADRESU / KODU
-    // -------------------------
-    async function askForAddress() {
-        const address = prompt("Podaj adres lub kod pocztowy:");
-
-        if (!address) return;
-
-        const result = await geocodeAddress(address);
-        if (!result) { alert("Nie znaleziono lokalizacji."); return; }
-
-        homePoint = { lat: result.lat, lon: result.lon };
-        saveAll();
-
-        if (homeMarker) homeMarker.remove();
-
-        homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-            .addTo(map)
-            .bindPopup("<b>Punkt startowy</b>");
-
-        map.setView([homePoint.lat, homePoint.lon], 15);
-    }
-    document.getElementById("changeAddress").onclick = askForAddress;
-    document.getElementById("setHomeOnMap").onclick = () => {
-        selectingHome = true;
-        alert("Kliknij na mapie, aby ustawić punkt startowy.");
-    };
-
-    // -------------------------
-    // LEADERBOARD
-    // -------------------------
-    function showLeaderboard() {
-        const leaderboardDiv = document.getElementById('leaderboard');
-        leaderboardDiv.style.display = 'block';
-        leaderboardDiv.innerHTML = "<b>Leaderboard:</b><br>";
-
-        db.ref('users').get().then(snapshot => {
-            const arr = [];
-            snapshot.forEach(child => {
-                const data = child.val();
-                arr.push({ username: child.key, points: data.points || 0 });
-            });
-
-            arr.sort((a,b) => b.points - a.points);
-            arr.forEach(user => {
-                leaderboardDiv.innerHTML += `${user.username}: ${user.points} pkt<br>`;
-            });
-        });
-    }
-
-    showLeaderboard(); // pokazujemy leaderboard od razu po wejściu
-    loadAll();
 });
