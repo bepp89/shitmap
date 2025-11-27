@@ -113,8 +113,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 .bindPopup("<b>Punkt startowy</b>");
             map.setView([homePoint.lat, homePoint.lon], 15);
         }
-
-        // Load markers saved in Firebase (optional, można rozszerzyć)
     }
 
     // -------------------------
@@ -126,34 +124,6 @@ document.addEventListener("DOMContentLoaded", () => {
             points: totalPoints,
             homePoint: homePoint
         });
-    }
-
-    // -------------------------
-    // ZAPIS / ODCZYT LOKALNY
-    // -------------------------
-    function saveAll() {
-        localStorage.setItem('markers', JSON.stringify(markers));
-        localStorage.setItem('markerCount', markerCount);
-        document.getElementById('count').textContent = markerCount;
-        document.getElementById("points").textContent = totalPoints;
-
-        saveUserData(); // zapisujemy do Firebase
-    }
-
-    function loadAll() {
-        const saved = JSON.parse(localStorage.getItem('markers')) || [];
-        markerCount = saved.length;
-
-        saved.forEach(obj => {
-            const marker = L.marker(obj.coords, { icon: blueIcon }).addTo(map);
-            marker.bindPopup(`
-                <b>${obj.desc}</b><br><br>
-                <button onclick="deleteMarker(${obj.id})">Usuń pinezkę</button>
-            `);
-            markers.push(obj);
-        });
-
-        document.getElementById('count').textContent = markerCount;
     }
 
     // -------------------------
@@ -203,58 +173,31 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // -------------------------
-    // USUWANIE PINEZKI
+    // LEADERBOARD
     // -------------------------
-    window.deleteMarker = function(id) {
-        const pin = markers.find(m => m.id === id);
+    function showLeaderboard() {
+        const leaderboardDiv = document.getElementById('leaderboard');
+        leaderboardDiv.style.display = 'block';
+        leaderboardDiv.innerHTML = "<b>Leaderboard:</b><br>";
 
-        if (pin && homePoint) {
-            const dist = distance(homePoint.lat, homePoint.lon, pin.coords[0], pin.coords[1]);
-            const pts = Math.floor(dist * 0.1);
-            totalPoints -= pts;
-            if (totalPoints < 0) totalPoints = 0;
-        }
+        db.ref('users').get().then(snapshot => {
+            const arr = [];
+            snapshot.forEach(child => {
+                const data = child.val();
+                arr.push({ username: child.key, points: data.points || 0 });
+            });
 
-        markers = markers.filter(m => m.id !== id);
-        markerCount = markers.length;
-
-        rebuildMap();
-        saveAll();
-
-        document.getElementById("distance").textContent = "0 m";
-    };
-
-    function rebuildMap() {
-        map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
-
-        if (homePoint) {
-            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-                .addTo(map)
-                .bindPopup("<b>Punkt startowy</b>");
-        }
-
-        markers.forEach(obj => {
-            const m = L.marker(obj.coords, { icon: blueIcon }).addTo(map);
-            m.bindPopup(`
-                <b>${obj.desc}</b><br><br>
-                <button onclick="deleteMarker(${obj.id})">Usuń pinezkę</button>
-            `);
+            arr.sort((a,b) => b.points - a.points);
+            arr.forEach(user => {
+                leaderboardDiv.innerHTML += `${user.username}: ${user.points} pkt<br>`;
+            });
+        }).catch(err => {
+            console.error("Błąd pobierania leaderboarda:", err);
+            leaderboardDiv.innerHTML = "<b>Wystąpił błąd podczas ładowania leaderboarda.</b>";
         });
-
-        document.getElementById('count').textContent = markerCount;
-        document.getElementById("points").textContent = totalPoints;
     }
 
-    // -------------------------
-    // RESET PUNKTÓW
-    // -------------------------
-    document.getElementById("resetPoints").onclick = () => {
-        if (!confirm("Na pewno chcesz zresetować wszystkie punkty?")) return;
-
-        totalPoints = 0;
-        document.getElementById("points").textContent = totalPoints;
-        saveAll();
-    };
+    showLeaderboard(); // pokazujemy leaderboard od razu po wejściu
 
     // -------------------------
     // USTAWIENIE ADRESU / KODU
@@ -278,34 +221,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
         map.setView([homePoint.lat, homePoint.lon], 15);
     }
+
+    async function geocodeAddress(address) {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=pl`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.length === 0) return null;
+
+        return {
+            lat: parseFloat(data[0].lat),
+            lon: parseFloat(data[0].lon)
+        };
+    }
+
     document.getElementById("changeAddress").onclick = askForAddress;
     document.getElementById("setHomeOnMap").onclick = () => {
         selectingHome = true;
         alert("Kliknij na mapie, aby ustawić punkt startowy.");
     };
 
-    // -------------------------
-    // LEADERBOARD
-    // -------------------------
-    function showLeaderboard() {
-        const leaderboardDiv = document.getElementById('leaderboard');
-        leaderboardDiv.style.display = 'block';
-        leaderboardDiv.innerHTML = "<b>Leaderboard:</b><br>";
-
-        db.ref('users').get().then(snapshot => {
-            const arr = [];
-            snapshot.forEach(child => {
-                const data = child.val();
-                arr.push({ username: child.key, points: data.points || 0 });
-            });
-
-            arr.sort((a,b) => b.points - a.points);
-            arr.forEach(user => {
-                leaderboardDiv.innerHTML += `${user.username}: ${user.points} pkt<br>`;
-            });
-        });
-    }
-
-    showLeaderboard(); // pokazujemy leaderboard od razu po wejściu
-    loadAll();
 });
