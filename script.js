@@ -1,9 +1,14 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // Przypisujemy odpowiednie elementy DOM do zmiennych
     const map = L.map('map').setView([53.126, 18.010], 13);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-    }).addTo(map);
+    const loginPanel = document.getElementById("loginPanel");
+    const statsPanel = document.getElementById("statsPanel");
+    const leaderboardPanel = document.getElementById("leaderboardPanel");
+    const loginMessage = document.getElementById("loginMessage");
+    const usernameInput = document.getElementById("usernameInput");
+    const passwordInput = document.getElementById("passwordInput");
+    const pointsLabel = document.getElementById("points");
+    const distanceLabel = document.getElementById("distance");
 
     let markers = [];
     let markerCount = 0;
@@ -41,11 +46,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // LOGIN / REGISTER
     // -------------------------
     async function login() {
-        let username = document.getElementById("usernameInput").value;
-        let password = document.getElementById("passwordInput").value;
+        const username = usernameInput.value;
+        const password = passwordInput.value;
 
         if (!username || !password) {
-            document.getElementById("loginMessage").textContent = "Wszystkie pola muszą być wypełnione!";
+            loginMessage.textContent = "Wszystkie pola muszą być wypełnione!";
             return;
         }
 
@@ -57,35 +62,29 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentUser = username;
                 totalPoints = data.points || 0;
                 homePoint = data.homePoint || null;
+
                 loadUserData();
-
-                // Ukryj panel logowania, a pokaż panel z danymi
-                document.getElementById("loginPanel").style.display = "none";
-                document.getElementById("statsPanel").style.display = "block";
-                document.getElementById("leaderboardPanel").style.display = "block";
-
-                // Zaktualizuj leaderboard
-                showLeaderboard(); 
+                showUserPanel(); // Przejście do panelu użytkownika
             } else {
-                document.getElementById("loginMessage").textContent = "Nieprawidłowe hasło!";
+                loginMessage.textContent = "Nieprawidłowe hasło!";
             }
         } else {
-            document.getElementById("loginMessage").textContent = "Nie ma takiego użytkownika.";
+            loginMessage.textContent = "Nie ma takiego użytkownika.";
         }
     }
 
     async function register() {
-        let username = document.getElementById("usernameInput").value;
-        let password = document.getElementById("passwordInput").value;
+        const username = usernameInput.value;
+        const password = passwordInput.value;
 
         if (!username || !password) {
-            document.getElementById("loginMessage").textContent = "Wszystkie pola muszą być wypełnione!";
+            loginMessage.textContent = "Wszystkie pola muszą być wypełnione!";
             return;
         }
 
         const snapshot = await db.ref('users/' + username).get();
         if (snapshot.exists()) {
-            document.getElementById("loginMessage").textContent = "Taka nazwa już istnieje!";
+            loginMessage.textContent = "Taka nazwa już istnieje!";
             return;
         }
 
@@ -97,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("Konto utworzone! Zaloguj się.");
     }
 
-    // Dodajemy event listener do przycisków logowania i rejestracji
+    // Po kliknięciu przycisku logowania i rejestracji
     document.getElementById("loginBtn").addEventListener("click", login);
     document.getElementById("createAccountBtn").addEventListener("click", register);
 
@@ -113,6 +112,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }).catch(error => {
             console.error("Błąd zapisywania danych użytkownika:", error);
         });
+    }
+
+    // -------------------------
+    // ŁADOWANIE DANYCH UŻYTKOWNIKA
+    // -------------------------
+    function loadUserData() {
+        pointsLabel.textContent = totalPoints;
+        if (homePoint) {
+            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
+                .addTo(map)
+                .bindPopup("<b>Punkt startowy</b>");
+            map.setView([homePoint.lat, homePoint.lon], 15);
+        }
+
+        showLeaderboard(); // Pokazujemy leaderboard po zalogowaniu
     }
 
     // -------------------------
@@ -184,8 +198,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const pts = Math.floor(dist * 0.1);
         totalPoints += pts;
 
-        document.getElementById("distance").textContent = dist + " m";
-        document.getElementById("points").textContent = totalPoints;
+        distanceLabel.textContent = dist + " m";
+        pointsLabel.textContent = totalPoints;
 
         saveUserData();
         showLeaderboard(); // Aktualizuj leaderboard po dodaniu punktu
@@ -208,10 +222,9 @@ document.addEventListener("DOMContentLoaded", () => {
         rebuildMap();
         saveUserData();
 
-        document.getElementById("distance").textContent = "0 m";
+        distanceLabel.textContent = "0 m";
     };
 
-    // Funkcja odbudowująca mapę po usunięciu pinezki
     function rebuildMap() {
         map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
 
@@ -230,77 +243,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         document.getElementById('count').textContent = markerCount;
-        document.getElementById("points").textContent = totalPoints;
-    }
-
-    // Funkcja obliczająca odległość (metry)
-    function distance(lat1, lon1, lat2, lon2) {
-        const R = 6371000; // Promień Ziemi w metrach
-        const toRad = x => x * Math.PI / 180;
-        const dLat = toRad(lat2 - lat1);
-        const dLon = toRad(lon2 - lon1);
-
-        const a =
-            Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
-
-        return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        pointsLabel.textContent = totalPoints;
     }
 
     // -------------------------
-    // RESET PUNKTÓW
+    // INITIAL LOAD
     // -------------------------
-    document.getElementById("resetPoints").onclick = () => {
-        if (!confirm("Na pewno chcesz zresetować wszystkie punkty?")) return;
-
-        totalPoints = 0;
-        document.getElementById("points").textContent = totalPoints;
-        saveUserData();
-    };
-
-    // -------------------------
-    // USTAWIENIE ADRESU
-    // -------------------------
-    async function askForAddress() {
-        const address = prompt("Podaj adres lub kod pocztowy:");
-
-        if (!address) return;
-
-        const result = await geocodeAddress(address);
-        if (!result) { alert("Nie znaleziono lokalizacji."); return; }
-
-        homePoint = { lat: result.lat, lon: result.lon };
-        saveUserData();
-
-        if (homeMarker) homeMarker.remove();
-
-        homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-            .addTo(map)
-            .bindPopup("<b>Punkt startowy</b>");
-
-        map.setView([homePoint.lat, homePoint.lon], 15);
-    }
-    document.getElementById("changeAddress").onclick = askForAddress;
-    document.getElementById("setHomeOnMap").onclick = () => {
-        selectingHome = true;
-        alert("Kliknij na mapie, aby ustawić punkt startowy.");
-    };
-
-    // -------------------------
-    // GEOKODOWANIE ADRESU
-    // -------------------------
-    async function geocodeAddress(address) {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=pl`;
-
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.length === 0) return null;
-
-        return {
-            lat: parseFloat(data[0].lat),
-            lon: parseFloat(data[0].lon)
-        };
-    }
+    loadUserData(); // Ładowanie danych użytkownika przy starcie
 });
