@@ -5,43 +5,49 @@
     <title>Mapa Pinezek</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <link rel="stylesheet" href="style.css">
+    <!-- Favicon -->
     <link rel="icon" href="favicon.jpg" type="image/x-icon">
+    <link rel="stylesheet" href="style.css">
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
+    <div id="map"></div>
     <div id="sidebar">
-        <div id="loginPanel" class="panel">
-            <b>Logowanie / Rejestracja:</b><br><br>
-            <input type="text" id="usernameInput" placeholder="Nick"><br><br>
-            <input type="password" id="passwordInput" placeholder="Hasło"><br><br>
-            <button id="loginBtn">Zaloguj</button>
-            <button id="createAccountBtn">Utwórz konto</button>
-            <div id="loginMessage" style="color:red; margin-top:5px;"></div>
+        <div class="panel">
+            <b>Liczba pinezek:</b>
+            <span id="count">0</span>
         </div>
-
-        <div id="statsPanel" class="panel" style="display:none;">
-            <b>Liczba pinezek:</b> <span id="count">0</span><br>
-            <b>Odległość ostatniej pinezki:</b> <span id="distance">0 m</span><br>
+        <div class="panel">
+            <b>Odległość ostatniej pinezki:</b>
+            <span id="distance">0 m</span>
+        </div>
+        <div class="panel" style="display: flex; align-items: center;">
             <span style="border: 2px solid #4CAF50; padding: 8px 15px; border-radius: 10px; font-size: 20px; color: #4CAF50; margin-right: 10px;">
                 Punkty: <span id="points">0</span>
             </span>
             <button id="resetPoints" style="padding: 8px 12px; border-radius: 8px; background-color: #f44336; color: white; border: none;">
                 Resetuj
-            </button><br><br>
+            </button>
+        </div>
+
+        <div class="panel">
             <button id="changeAddress">Ustaw punkt startowy (adres/kod)</button>
             <button id="setHomeOnMap">Ustaw punkt startowy na mapie</button>
+            <button id="leaderboardBtn">Leaderboard</button>
         </div>
 
-        <div id="leaderboardPanel" class="panel" style="display:none;">
-            <b>Leaderboard:</b>
-            <div id="leaderboard" style="background:white; padding:10px; margin-top:10px; border-radius:5px; max-height:300px; overflow:auto;"></div>
+        <div id="leaderboard" style="display:none; background:white; padding:10px; margin-top:10px; border-radius:5px; max-height:300px; overflow:auto;">
+            <!-- Leaderboard będzie się tutaj wyświetlał -->
+        </div>
+
+        <div class="panel">
+            <button id="loginBtn">Zaloguj się</button>
+            <button id="registerBtn">Utwórz konto</button>
         </div>
     </div>
-
-    <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
