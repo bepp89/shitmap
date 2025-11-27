@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 loadAll();
                 alert("Zalogowano pomyślnie!");
                 toggleLoginUI(false); // Ukrycie przycisków po zalogowaniu
-                showLeaderboard();
+                showLeaderboard(); // Pokazanie leaderboardu po zalogowaniu
             } else {
                 alert("Brak konta o takim nicku.");
             }
@@ -234,9 +234,6 @@ document.addEventListener("DOMContentLoaded", () => {
         saveAll();
     });
 
-    // -------------------------
-    // USUWANIE PINEZKI
-    // -------------------------
     window.deleteMarker = function(id) {
         const pin = markers.find(m => m.id === id);
 
@@ -277,5 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("points").textContent = totalPoints;
     }
 
-    loadAll();  // Załadowanie zapisanych danych
+    loadAll(); // Załadowanie zapisanych danych
+
+    toggleLoginUI(true);  // Początkowo wyświetlamy przyciski logowania
 });
