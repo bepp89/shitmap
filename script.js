@@ -1,14 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // Przypisujemy odpowiednie elementy DOM do zmiennych
     const map = L.map('map').setView([53.126, 18.010], 13);
-    const loginPanel = document.getElementById("loginPanel");
-    const statsPanel = document.getElementById("statsPanel");
-    const leaderboardPanel = document.getElementById("leaderboardPanel");
-    const loginMessage = document.getElementById("loginMessage");
-    const usernameInput = document.getElementById("usernameInput");
-    const passwordInput = document.getElementById("passwordInput");
-    const pointsLabel = document.getElementById("points");
-    const distanceLabel = document.getElementById("distance");
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+    }).addTo(map);
 
     let markers = [];
     let markerCount = 0;
@@ -46,11 +41,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // LOGIN / REGISTER
     // -------------------------
     async function login() {
-        const username = usernameInput.value;
-        const password = passwordInput.value;
+        let username = document.getElementById("usernameInput").value;
+        let password = document.getElementById("passwordInput").value;
 
         if (!username || !password) {
-            loginMessage.textContent = "Wszystkie pola muszą być wypełnione!";
+            document.getElementById("loginMessage").textContent = "Wszystkie pola muszą być wypełnione!";
             return;
         }
 
@@ -62,29 +57,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentUser = username;
                 totalPoints = data.points || 0;
                 homePoint = data.homePoint || null;
-
                 loadUserData();
-                showUserPanel(); // Przejście do panelu użytkownika
+                document.getElementById("loginPanel").style.display = "none";
+                document.getElementById("statsPanel").style.display = "block";
+                showLeaderboard(); // Aktualizuj leaderboard po zalogowaniu
             } else {
-                loginMessage.textContent = "Nieprawidłowe hasło!";
+                document.getElementById("loginMessage").textContent = "Nieprawidłowe hasło!";
             }
         } else {
-            loginMessage.textContent = "Nie ma takiego użytkownika.";
+            document.getElementById("loginMessage").textContent = "Nie ma takiego użytkownika.";
         }
     }
 
     async function register() {
-        const username = usernameInput.value;
-        const password = passwordInput.value;
+        let username = document.getElementById("usernameInput").value;
+        let password = document.getElementById("passwordInput").value;
 
         if (!username || !password) {
-            loginMessage.textContent = "Wszystkie pola muszą być wypełnione!";
+            document.getElementById("loginMessage").textContent = "Wszystkie pola muszą być wypełnione!";
             return;
         }
 
         const snapshot = await db.ref('users/' + username).get();
         if (snapshot.exists()) {
-            loginMessage.textContent = "Taka nazwa już istnieje!";
+            document.getElementById("loginMessage").textContent = "Taka nazwa już istnieje!";
             return;
         }
 
@@ -96,38 +92,68 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("Konto utworzone! Zaloguj się.");
     }
 
-    // Po kliknięciu przycisku logowania i rejestracji
+    // Obsługuje kliknięcia przycisków
     document.getElementById("loginBtn").addEventListener("click", login);
     document.getElementById("createAccountBtn").addEventListener("click", register);
 
     // -------------------------
-    // ZAPIS DANYCH DO FIREBASE
-    // -------------------------
-    function saveUserData() {
-        if (!currentUser) return;
-
-        db.ref('users/' + currentUser).update({
-            points: totalPoints,
-            homePoint: homePoint
-        }).catch(error => {
-            console.error("Błąd zapisywania danych użytkownika:", error);
-        });
-    }
-
-    // -------------------------
-    // ŁADOWANIE DANYCH UŻYTKOWNIKA
+    // LOAD USER DATA
     // -------------------------
     function loadUserData() {
-        pointsLabel.textContent = totalPoints;
+        document.getElementById("points").textContent = totalPoints;
         if (homePoint) {
             homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
                 .addTo(map)
                 .bindPopup("<b>Punkt startowy</b>");
             map.setView([homePoint.lat, homePoint.lon], 15);
         }
-
-        showLeaderboard(); // Pokazujemy leaderboard po zalogowaniu
     }
+
+    // -------------------------
+    // GEOKODOWANIE ADRESU / KODU
+    // -------------------------
+    async function geocodeAddress(address) {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=pl`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.length === 0) {
+            alert("Nie znaleziono lokalizacji.");
+            return null;
+        }
+
+        return {
+            lat: parseFloat(data[0].lat),
+            lon: parseFloat(data[0].lon)
+        };
+    }
+
+    async function askForAddress() {
+        const address = prompt("Podaj adres lub kod pocztowy:");
+
+        if (!address) return;
+
+        const result = await geocodeAddress(address);
+        if (!result) return;
+
+        homePoint = { lat: result.lat, lon: result.lon };
+        saveAll();
+
+        if (homeMarker) homeMarker.remove();
+
+        homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
+            .addTo(map)
+            .bindPopup("<b>Punkt startowy</b>");
+
+        map.setView([homePoint.lat, homePoint.lon], 15);
+    }
+
+    document.getElementById("changeAddress").onclick = askForAddress;
+    document.getElementById("setHomeOnMap").onclick = () => {
+        selectingHome = true;
+        alert("Kliknij na mapie, aby ustawić punkt startowy.");
+    };
 
     // -------------------------
     // LEADERBOARD
@@ -145,13 +171,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     users.push({ username: username, points: data.points });
                 });
 
+                // Sortujemy użytkowników po punktach (malejąco)
                 users.sort((a, b) => b.points - a.points);
 
+                // Wyświetlamy liderów
                 users.forEach(user => {
                     leaderboardDiv.innerHTML += `${user.username}: ${user.points} pkt<br>`;
                 });
 
-                leaderboardDiv.style.display = 'block';
+                leaderboardDiv.style.display = 'block'; // Upewniamy się, że leaderboard jest widoczny
             })
             .catch(error => {
                 console.error("Błąd pobierania leaderboarda:", error);
@@ -160,94 +188,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // -------------------------
-    // KLIK W MAPĘ
+    // ZAPISY I USUWANIE PINEZEK
     // -------------------------
-    map.on("click", async (e) => {
-        if (!currentUser) { alert("Zaloguj się!"); return; }
-
-        if (selectingHome) {
-            selectingHome = false;
-
-            homePoint = { lat: e.latlng.lat, lon: e.latlng.lng };
-            if (homeMarker) homeMarker.remove();
-
-            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-                .addTo(map)
-                .bindPopup("<b>Punkt startowy</b>");
-
-            saveUserData();
-            return;
-        }
-
-        if (!homePoint) { alert("Najpierw ustaw punkt startowy!"); return; }
-
-        const coords = [e.latlng.lat, e.latlng.lng];
-        const desc = prompt("Podaj opis pinezki:") || "Brak opisu";
-        const id = Date.now();
-
-        const marker = L.marker(coords, { icon: blueIcon }).addTo(map);
-        marker.bindPopup(`
-            <b>${desc}</b><br><br>
-            <button onclick="deleteMarker(${id})">Usuń pinezkę</button>
-        `);
-
-        markers.push({ id, coords, desc });
-        markerCount++;
-
-        const dist = distance(homePoint.lat, homePoint.lon, coords[0], coords[1]);
-        const pts = Math.floor(dist * 0.1);
-        totalPoints += pts;
-
-        distanceLabel.textContent = dist + " m";
-        pointsLabel.textContent = totalPoints;
-
-        saveUserData();
-        showLeaderboard(); // Aktualizuj leaderboard po dodaniu punktu
-    });
-
-    // Funkcja usuwania pinezki
-    window.deleteMarker = function(id) {
-        const pin = markers.find(m => m.id === id);
-
-        if (pin && homePoint) {
-            const dist = distance(homePoint.lat, homePoint.lon, pin.coords[0], pin.coords[1]);
-            const pts = Math.floor(dist * 0.1);
-            totalPoints -= pts;
-            if (totalPoints < 0) totalPoints = 0;
-        }
-
-        markers = markers.filter(m => m.id !== id);
-        markerCount = markers.length;
-
-        rebuildMap();
-        saveUserData();
-
-        distanceLabel.textContent = "0 m";
-    };
-
-    function rebuildMap() {
-        map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
-
-        if (homePoint) {
-            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
-                .addTo(map)
-                .bindPopup("<b>Punkt startowy</b>");
-        }
-
-        markers.forEach(obj => {
-            const m = L.marker(obj.coords, { icon: blueIcon }).addTo(map);
-            m.bindPopup(`
-                <b>${obj.desc}</b><br><br>
-                <button onclick="deleteMarker(${obj.id})">Usuń pinezkę</button>
-            `);
-        });
-
+    function saveAll() {
+        localStorage.setItem('markers', JSON.stringify(markers));
+        localStorage.setItem('markerCount', markerCount);
         document.getElementById('count').textContent = markerCount;
-        pointsLabel.textContent = totalPoints;
+        document.getElementById("points").textContent = totalPoints;
+
+        saveUserData(); // zapisujemy do Firebase
     }
 
-    // -------------------------
-    // INITIAL LOAD
-    // -------------------------
-    loadUserData(); // Ładowanie danych użytkownika przy starcie
+    function saveUserData() {
+        if (!currentUser) return;
+        db.ref('users/' + currentUser).update({
+            points: totalPoints,
+            homePoint: homePoint
+        });
+    }
+
+    loadAll(); // ładujemy dane po starcie strony
 });
