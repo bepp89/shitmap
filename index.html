@@ -2,48 +2,73 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Mapa Pinezek</title>
+    <title>Shitmap</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <link rel="stylesheet" href="style.css">
-    <!-- favicon -->
     <link rel="icon" href="favicon.jpg" type="image/x-icon">
-    <link rel="stylesheet" href="style.css">
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
+    <!-- MAPA -->
     <div id="map"></div>
 
+    <!-- SIDEBAR -->
     <div id="sidebar">
-        <div class="panel">
-            <b>Liczba pinezek:</b>
-            <span id="count">0</span>
+        <!-- PANEL LOGOWANIA -->
+        <div id="loginPanel">
+            <div class="panel">
+                <b>Login:</b><br>
+                <input type="text" id="usernameInput" placeholder="Nazwa użytkownika">
+            </div>
+            <div class="panel">
+                <b>Hasło:</b><br>
+                <input type="password" id="passwordInput" placeholder="Hasło">
+            </div>
+            <div class="panel">
+                <button id="loginBtn">Zaloguj się</button>
+                <button id="createAccountBtn">Utwórz konto</button>
+            </div>
+            <div id="loginMessage" style="color:red; margin-top:5px;"></div>
         </div>
 
-        <div class="panel">
-            <b>Odległość ostatniej pinezki:</b>
-            <span id="distance">0 m</span>
+        <!-- PANEL STATYSTYK -->
+        <div id="statsPanel" style="display:none;">
+            <div class="panel">
+                <b>Liczba pinezek:</b>
+                <span id="count">0</span>
+            </div>
+
+            <div class="panel">
+                <b>Odległość ostatniej pinezki:</b>
+                <span id="distance">0 m</span>
+            </div>
+
+            <div class="panel" style="display: flex; align-items: center;">
+                <span style="border: 2px solid #4CAF50; padding: 8px 15px; border-radius: 10px; font-size: 20px; color: #4CAF50; margin-right: 10px;">
+                    Punkty: <span id="points">0</span>
+                </span>
+                <button id="resetPoints" style="padding: 8px 12px; border-radius: 8px; background-color: #f44336; color: white; border: none;">
+                    Resetuj
+                </button>
+            </div>
+
+            <div class="panel">
+                <button id="changeAddress">Ustaw punkt startowy (adres/kod)</button>
+                <button id="setHomeOnMap">Ustaw punkt startowy na mapie</button>
+            </div>
         </div>
 
-        <div class="panel" style="display: flex; align-items: center;">
-            <span style="border: 2px solid #4CAF50; padding: 8px 15px; border-radius: 10px; font-size: 20px; color: #4CAF50; margin-right: 10px;">
-                Punkty: <span id="points">0</span>
-            </span>
-            <button id="resetPoints" style="padding: 8px 12px; border-radius: 8px; background-color: #f44336; color: white; border: none;">
-                Resetuj
-            </button>
-        </div>
-
-        <div class="panel">
-            <button id="changeAddress">Ustaw punkt startowy (adres/kod)</button>
-            <button id="setHomeOnMap">Ustaw punkt startowy na mapie</button>
-            <button id="leaderboardBtn">Leaderboard</button>
-            <div id="leaderboard" style="display:none; background:white; padding:10px; margin-top:10px; border-radius:5px; max-height:300px; overflow:auto;"></div>
+        <!-- LEADERBOARD -->
+        <div id="leaderboardPanel" style="display:none;">
+            <b>Leaderboard:</b>
+            <div id="leaderboard" style="background:white; padding:10px; margin-top:10px; border-radius:5px; max-height:300px; overflow:auto;"></div>
         </div>
     </div>
 
+    <!-- LEAFLET JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
 </body>
