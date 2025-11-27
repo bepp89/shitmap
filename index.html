@@ -5,7 +5,7 @@
     <title>Mapa Pinezek</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <link rel="stylesheet" href="style.css">
-    <!-- Favicon -->
+    <!-- favicon -->
     <link rel="icon" href="favicon.jpg" type="image/x-icon">
     <link rel="stylesheet" href="style.css">
 
@@ -15,15 +15,18 @@
 </head>
 <body>
     <div id="map"></div>
+
     <div id="sidebar">
         <div class="panel">
             <b>Liczba pinezek:</b>
             <span id="count">0</span>
         </div>
+
         <div class="panel">
             <b>Odległość ostatniej pinezki:</b>
             <span id="distance">0 m</span>
         </div>
+
         <div class="panel" style="display: flex; align-items: center;">
             <span style="border: 2px solid #4CAF50; padding: 8px 15px; border-radius: 10px; font-size: 20px; color: #4CAF50; margin-right: 10px;">
                 Punkty: <span id="points">0</span>
@@ -37,15 +40,16 @@
             <button id="changeAddress">Ustaw punkt startowy (adres/kod)</button>
             <button id="setHomeOnMap">Ustaw punkt startowy na mapie</button>
             <button id="leaderboardBtn">Leaderboard</button>
+            <div id="leaderboard" style="display:none; background:white; padding:10px; margin-top:10px; border-radius:5px; max-height:300px; overflow:auto;"></div>
         </div>
 
-        <div id="leaderboard" style="display:none; background:white; padding:10px; margin-top:10px; border-radius:5px; max-height:300px; overflow:auto;">
-            <!-- Leaderboard będzie się tutaj wyświetlał -->
-        </div>
-
-        <div class="panel">
+        <!-- Logowanie i rejestracja -->
+        <div id="loginPanel">
             <button id="loginBtn">Zaloguj się</button>
-            <button id="registerBtn">Utwórz konto</button>
+            <button id="registerBtn">Stwórz konto</button>
+        </div>
+        <div id="logoutPanel" style="display:none;">
+            <button id="logoutBtn">Wyloguj się</button>
         </div>
     </div>
 
