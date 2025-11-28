@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // -------------------------
-    // FUNKCJA OBLICZANIA ODLEGŁOŚCI (metry)
+    // FUNKCJA OBLICZANIA ODLEGŁOŚCI
     // -------------------------
     function distance(lat1, lon1, lat2, lon2) {
         const R = 6371000;
@@ -41,7 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // -------------------------
-    // GEOKODOWANIE ADRESU / KODU
+    // GEOKODOWANIE
     // -------------------------
     async function geocodeAddress(address) {
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=pl`;
@@ -67,35 +67,85 @@ document.addEventListener("DOMContentLoaded", () => {
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // -------------------------
+    // ZAPIS / ODCZYT HOMEPOINT
+    // -------------------------
     function saveHomePoint() {
         if (!currentUser || !homePoint) return;
         db.ref("users/" + currentUser).update({
-            homePoint: {
-                lat: homePoint.lat,
-                lon: homePoint.lon
-            }
+            homePoint: homePoint
         });
     }
 
     function loadHomePoint() {
         if (!currentUser) return;
+        db.ref("users/" + currentUser + "/homePoint").once("value", snap => {
+            if (!snap.exists()) return;
 
-        db.ref("users/" + currentUser + "/homePoint").once("value", snapshot => {
-            if (!snapshot.exists()) return;
-
-            const hp = snapshot.val();
-            homePoint = { lat: hp.lat, lon: hp.lon };
+            homePoint = snap.val();
 
             if (homeMarker) homeMarker.remove();
-
-            homeMarker = L.marker([hp.lat, hp.lon], { icon: redIcon })
+            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
                 .addTo(map)
                 .bindPopup("<b>Punkt startowy</b>");
 
-            map.setView([hp.lat, hp.lon], 15);
+            map.setView([homePoint.lat, homePoint.lon], 15);
         });
     }
 
+    // -------------------------
+    // ZAPIS PINEZEK DO FIREBASE
+    // -------------------------
+    function savePin(id, coords, desc) {
+        if (!currentUser) return;
+
+        db.ref("users/" + currentUser + "/pins/" + id).set({
+            id: id,
+            lat: coords[0],
+            lng: coords[1],
+            desc: desc
+        });
+    }
+
+    // -------------------------
+    // USUWANIE pinezek z Firebase
+    // -------------------------
+    function removePin(id) {
+        if (!currentUser) return;
+        db.ref("users/" + currentUser + "/pins/" + id).remove();
+    }
+
+    // -------------------------
+    // WCZYTANIE pinezek użytkownika
+    // -------------------------
+    function loadPins() {
+        if (!currentUser) return;
+
+        db.ref("users/" + currentUser + "/pins").once("value", snap => {
+            if (!snap.exists()) return;
+
+            markers = [];
+            markerCount = 0;
+
+            snap.forEach(child => {
+                const p = child.val();
+
+                markers.push({
+                    id: p.id,
+                    coords: [p.lat, p.lng],
+                    desc: p.desc
+                });
+
+                markerCount++;
+            });
+
+            rebuildMap();
+        });
+    }
+
+    // -------------------------
+    // ZAPIS PUNKTÓW
+    // -------------------------
     function saveScore() {
         if (!currentUser) return;
         db.ref('users/' + currentUser).update({ points: totalPoints });
@@ -103,16 +153,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function updateLeaderboard() {
-        const leaderboardDiv = document.getElementById('leaderboard');
-        leaderboardDiv.innerHTML = "";
-        db.ref('users').orderByChild('points').once('value', snapshot => {
-            const data = [];
-            snapshot.forEach(child => {
-                data.push({ user: child.key, points: child.val().points || 0 });
-            });
-            data.sort((a,b) => b.points - a.points);
-            data.forEach(entry => {
-                leaderboardDiv.innerHTML += `${entry.user}: ${entry.points} pkt<br>`;
+        const div = document.getElementById("leaderboard");
+        div.innerHTML = "";
+
+        db.ref('users').orderByChild("points").once("value", snap => {
+            const arr = [];
+            snap.forEach(c => arr.push({ user: c.key, points: c.val().points || 0 }));
+            arr.sort((a, b) => b.points - a.points);
+
+            arr.forEach(e => {
+                div.innerHTML += `${e.user}: ${e.points} pkt<br>`;
             });
         });
     }
@@ -126,82 +176,93 @@ document.addEventListener("DOMContentLoaded", () => {
     const loginMessage = document.getElementById("loginMessage");
 
     document.getElementById("loginBtn").onclick = () => {
-        const username = document.getElementById("usernameInput").value.trim();
-        const password = document.getElementById("passwordInput").value.trim();
-        if (!username || !password) { loginMessage.textContent = "Podaj login i hasło!"; return; }
+        const user = usernameInput.value.trim();
+        const pass = passwordInput.value.trim();
+        if (!user || !pass) return loginMessage.textContent = "Podaj dane!";
 
-        db.ref('users/' + username).once('value', snapshot => {
-            if (snapshot.exists()) {
-                const stored = snapshot.val();
-                if (stored.password !== password) { loginMessage.textContent = "Nieprawidłowe hasło!"; return; }
-                storedPassword = stored.password;
-                loginUser(username, stored.points || 0);
-            } else { loginMessage.textContent = "Nie znaleziono użytkownika!"; }
+        db.ref("users/" + user).once("value", snap => {
+            if (!snap.exists()) return loginMessage.textContent = "Nie ma takiego użytkownika!";
+
+            if (snap.val().password !== pass) return loginMessage.textContent = "Złe hasło!";
+
+            loginUser(user, snap.val().points || 0);
         });
     };
 
     document.getElementById("createAccountBtn").onclick = () => {
-        const username = document.getElementById("usernameInput").value.trim();
-        const password = document.getElementById("passwordInput").value.trim();
-        if (!username || !password) { loginMessage.textContent = "Podaj login i hasło!"; return; }
+        const user = usernameInput.value.trim();
+        const pass = passwordInput.value.trim();
+        if (!user || !pass) return loginMessage.textContent = "Podaj dane!";
 
-        db.ref('users/' + username).once('value', snapshot => {
-            if (snapshot.exists()) { loginMessage.textContent = "Użytkownik już istnieje!"; return; }
-            // utwórz konto
-            db.ref('users/' + username).set({ password: password, points: 0 });
-            storedPassword = password;
-            loginUser(username, 0);
+        db.ref("users/" + user).once("value", snap => {
+            if (snap.exists()) return loginMessage.textContent = "Użytkownik istnieje!";
+
+            db.ref("users/" + user).set({ password: pass, points: 0 });
+            loginUser(user, 0);
         });
     };
 
     function loginUser(username, points) {
         currentUser = username;
         totalPoints = points;
+
         loginPanel.style.display = "none";
         statsPanel.style.display = "block";
         leaderboardPanel.style.display = "block";
-        document.getElementById("points").textContent = totalPoints;
+
+        points.textContent = totalPoints;
+
         updateLeaderboard();
         loadHomePoint();
+        loadPins();
     }
 
     // -------------------------
-    // MAPA - KLIK
+    // KLIK NA MAPIE
     // -------------------------
-    document.getElementById("setHomeOnMap").onclick = () => { selectingHome = true; alert("Kliknij na mapie, aby ustawić punkt startowy."); };
-    document.getElementById("changeAddress").onclick = async () => {
-        const address = prompt("Podaj adres lub kod pocztowy:");
-        if (!address) return;
-        const result = await geocodeAddress(address);
-        if (!result) { alert("Nie znaleziono lokalizacji."); return; }
-        homePoint = { lat: result.lat, lon: result.lon };
-        saveHomePoint();
-        if (homeMarker) homeMarker.remove();
-        homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon }).addTo(map).bindPopup("<b>Punkt startowy</b>");
-        map.setView([homePoint.lat, homePoint.lon], 15);
+    document.getElementById("setHomeOnMap").onclick = () => {
+        selectingHome = true;
+        alert("Kliknij na mapie, aby ustawić punkt startowy.");
     };
 
-    map.on("click", (e) => {
-        if (!currentUser) { alert("Najpierw zaloguj się!"); return; }
+    document.getElementById("changeAddress").onclick = async () => {
+        const address = prompt("Podaj adres:");
+        if (!address) return;
+
+        const result = await geocodeAddress(address);
+        if (!result) return alert("Nie znaleziono!");
+
+        homePoint = { lat: result.lat, lon: result.lon };
+        saveHomePoint();
+
+        if (homeMarker) homeMarker.remove();
+        homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon }).addTo(map);
+    };
+
+    map.on("click", e => {
+        if (!currentUser) return alert("Najpierw zaloguj się!");
         if (selectingHome) {
             selectingHome = false;
             homePoint = { lat: e.latlng.lat, lon: e.latlng.lng };
             saveHomePoint();
+
             if (homeMarker) homeMarker.remove();
-            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon }).addTo(map).bindPopup("<b>Punkt startowy</b>");
+            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon }).addTo(map);
             return;
         }
-        if (!homePoint) { alert("Najpierw ustaw punkt startowy!"); return; }
+        if (!homePoint) return alert("Najpierw ustaw punkt startowy!");
 
         const coords = [e.latlng.lat, e.latlng.lng];
-        const desc = prompt("Podaj opis pinezki:") || "Brak opisu";
+        const desc = prompt("Opis:") || "Brak opisu";
         const id = Date.now();
-        L.marker(coords, { icon: blueIcon }).addTo(map).bindPopup(`<b>${desc}</b><br><br><button onclick="deleteMarker(${id})">Usuń pinezkę</button>`);
 
         markers.push({ id, coords, desc });
         markerCount++;
+
+        savePin(id, coords, desc);
+
         const dist = distance(homePoint.lat, homePoint.lon, coords[0], coords[1]);
-        const pts = Math.floor(dist * 0.1); // 100m=10pkt
+        const pts = Math.floor(dist * 0.1);
         totalPoints += pts;
 
         document.getElementById("count").textContent = markerCount;
@@ -209,44 +270,56 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("points").textContent = totalPoints;
 
         saveScore();
+        rebuildMap();
     });
 
     // -------------------------
     // USUWANIE PINEZKI
     // -------------------------
-    window.deleteMarker = function(id) {
+    window.deleteMarker = id => {
         const pin = markers.find(m => m.id === id);
         if (pin && homePoint) {
             const dist = distance(homePoint.lat, homePoint.lon, pin.coords[0], pin.coords[1]);
             const pts = Math.floor(dist * 0.1);
-            totalPoints -= pts;
-            if (totalPoints < 0) totalPoints = 0;
+            totalPoints = Math.max(0, totalPoints - pts);
             saveScore();
         }
+
         markers = markers.filter(m => m.id !== id);
         markerCount = markers.length;
+
+        removePin(id);
         rebuildMap();
-        document.getElementById("distance").textContent = "0 m";
     };
 
+    // -------------------------
+    // ODBUDOWA MAPY
+    // -------------------------
     function rebuildMap() {
-        map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
-        if (homePoint) homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon }).addTo(map).bindPopup("<b>Punkt startowy</b>");
+        map.eachLayer(l => { if (l instanceof L.Marker) map.removeLayer(l); });
+
+        if (homePoint)
+            homeMarker = L.marker([homePoint.lat, homePoint.lon], { icon: redIcon })
+                .addTo(map)
+                .bindPopup("<b>Punkt startowy</b>");
+
         markers.forEach(obj => {
             const m = L.marker(obj.coords, { icon: blueIcon }).addTo(map);
-            m.bindPopup(`<b>${obj.desc}</b><br><br><button onclick="deleteMarker(${obj.id})">Usuń pinezkę</button>`);
+            m.bindPopup(`<b>${obj.desc}</b><br><br>
+                <button onclick="deleteMarker(${obj.id})">Usuń pinezkę</button>`);
         });
-        document.getElementById('count').textContent = markerCount;
+
+        document.getElementById("count").textContent = markerCount;
         document.getElementById("points").textContent = totalPoints;
     }
 
     // -------------------------
     // RESET PUNKTÓW
     // -------------------------
-    document.getElementById("resetPoints").onclick = () => {
-        if (!confirm("Na pewno chcesz zresetować wszystkie punkty?")) return;
+    resetPoints.onclick = () => {
+        if (!confirm("Na pewno?")) return;
         totalPoints = 0;
-        document.getElementById("points").textContent = totalPoints;
+        points.textContent = 0;
         saveScore();
     };
 });
