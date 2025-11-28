@@ -19,8 +19,8 @@ body {
     position: absolute;
     top: 20px;
     right: 20px;
-    width: 350px;
-    height: 350px;
+    width: 500px;
+    height: 500px;
     padding: 10px;
     background: #e4e3e3;
     overflow-y: auto;
@@ -89,3 +89,4 @@ button {
         padding: 12px;
     }
 }
+
