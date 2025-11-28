@@ -76,6 +76,44 @@ document.addEventListener("DOMContentLoaded", () => {
             homePoint: homePoint
         });
     }
+// Zapis pinezki do Firebase
+function savePin(id, coords, desc) {
+    if (!currentUser) return;
+    db.ref("users/" + currentUser + "/pins/" + id).set({
+        id: id,
+        lat: coords[0],
+        lng: coords[1],
+        desc: desc
+    });
+}
+
+// Usuwanie pinezki z Firebase
+function deletePinFromDB(id) {
+    if (!currentUser) return;
+    db.ref("users/" + currentUser + "/pins/" + id).remove();
+}
+
+// Wczytanie wszystkich pinezek użytkownika
+function loadPins() {
+    if (!currentUser) return;
+
+    db.ref("users/" + currentUser + "/pins").once("value", snapshot => {
+        markers = [];
+        markerCount = 0;
+
+        snapshot.forEach(child => {
+            const p = child.val();
+            markers.push({
+                id: p.id,
+                coords: [p.lat, p.lng],
+                desc: p.desc
+            });
+            markerCount++;
+        });
+
+        rebuildMap();
+    });
+}
 
     function loadHomePoint() {
         if (!currentUser) return;
@@ -202,20 +240,21 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
-    function loginUser(username, points) {
-        currentUser = username;
-        totalPoints = points;
+function loginUser(username, points) {
+    currentUser = username;
+    totalPoints = points;
 
-        loginPanel.style.display = "none";
-        statsPanel.style.display = "block";
-        leaderboardPanel.style.display = "block";
+    loginPanel.style.display = "none";
+    statsPanel.style.display = "block";
+    leaderboardPanel.style.display = "block";
 
-        points.textContent = totalPoints;
+    document.getElementById("points").textContent = totalPoints;
 
-        updateLeaderboard();
-        loadHomePoint();
-        loadPins();
-    }
+    updateLeaderboard();
+    loadHomePoint();
+    loadPins();     // ⬅️ WAŻNE! Pinezki ładują się tutaj
+}
+
 
     // -------------------------
     // KLIK NA MAPIE
@@ -258,6 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         markers.push({ id, coords, desc });
         markerCount++;
+        savePin(id, coords, desc);
 
         savePin(id, coords, desc);
 
@@ -289,6 +329,7 @@ document.addEventListener("DOMContentLoaded", () => {
         markerCount = markers.length;
 
         removePin(id);
+        deletePinFromDB(id);
         rebuildMap();
     };
 
@@ -323,3 +364,4 @@ document.addEventListener("DOMContentLoaded", () => {
         saveScore();
     };
 });
+
