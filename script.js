@@ -189,21 +189,29 @@ function loadPins() {
         db.ref('users/' + currentUser).update({ points: totalPoints });
         updateLeaderboard();
     }
+function updateLeaderboard() {
+    const div = document.getElementById("leaderboard");
+    div.innerHTML = "";
 
-    function updateLeaderboard() {
-        const div = document.getElementById("leaderboard");
-        div.innerHTML = "";
+    db.ref('users').once("value", snap => {
+        const arr = [];
 
-        db.ref('users').orderByChild("points").once("value", snap => {
-            const arr = [];
-            snap.forEach(c => arr.push({ user: c.key, points: c.val().points || 0 }));
-            arr.sort((a, b) => b.points - a.points);
-
-            arr.forEach(e => {
-                div.innerHTML += `${e.user}: ${e.points} pkt<br>`;
+        snap.forEach(c => {
+            const val = c.val();
+            arr.push({
+                user: c.key,
+                points: val.points !== undefined ? val.points : 0
             });
         });
-    }
+
+        arr.sort((a, b) => b.points - a.points);
+
+        arr.forEach(e => {
+            div.innerHTML += `${e.user}: ${e.points} pkt<br>`;
+        });
+    });
+}
+
 
     // -------------------------
     // LOGOWANIE / REJESTRACJA
@@ -364,4 +372,5 @@ function loginUser(username, points) {
         saveScore();
     };
 });
+
 
