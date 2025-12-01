@@ -99,7 +99,7 @@ input::placeholder{
 #createAccountBtn{
    width: 500px;
 }
-#oginBtn{
+#loginBtn{
     width: 500px;
 }
 
@@ -121,6 +121,7 @@ input::placeholder{
         padding: 12px;
     }
 }
+
 
 
 
