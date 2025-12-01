@@ -204,13 +204,20 @@ function updateLeaderboard() {
             });
         });
 
+        // Sortujemy malejąco
         arr.sort((a, b) => b.points - a.points);
 
-        arr.forEach(e => {
-            div.innerHTML += `${e.user}: ${e.points} pkt<br>`;
+        arr.forEach((e, index) => {
+            if (index === 0) {
+                // ⬅️ Lider dostaje dwie korony
+                div.innerHTML += `👑 <b>${e.user}</b> 👑 — ${e.points} pkt<br>`;
+            } else {
+                div.innerHTML += `${e.user} — ${e.points} pkt<br>`;
+            }
         });
     });
 }
+
 
 
     // -------------------------
@@ -372,5 +379,6 @@ function loginUser(username, points) {
         saveScore();
     };
 });
+
 
 
