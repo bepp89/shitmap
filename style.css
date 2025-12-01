@@ -96,7 +96,12 @@ input::placeholder{
     font-size: large;
     
 }
-
+#createAccountBtn{
+   width: 500px;
+}
+#oginBtn{
+    width: 500px;
+}
 
 
 /* -------------------------
@@ -116,5 +121,6 @@ input::placeholder{
         padding: 12px;
     }
 }
+
 
 
